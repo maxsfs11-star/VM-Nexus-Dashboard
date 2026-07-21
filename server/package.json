@@ -1,0 +1,21 @@
+{
+  "name": "vm-nexus-api",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "check": "node --check src/server.js && node --check src/app.js && node --check src/routes/unitRoutes.js && node --check src/routes/integrationRoutes.js && node --check src/scripts/migrate.js && node --check src/scripts/bootstrapAdmin.js",
+    "migrate": "node src/scripts/migrate.js",
+    "bootstrap:admin": "node src/scripts/bootstrapAdmin.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.16.3"
+  }
+}

@@ -1,0 +1,21 @@
+import cors from "cors";
+import express from "express";
+import { env } from "./config/env.js";
+import authRoutes from "./routes/authRoutes.js";
+import tenantRoutes from "./routes/tenantRoutes.js";
+import unitRoutes from "./routes/unitRoutes.js";
+import integrationRoutes from "./routes/integrationRoutes.js";
+
+export const app = express();
+app.use(cors({ origin: env.corsOrigin }));
+app.use(express.json());
+app.get("/api/health", (_req, res) => res.json({ service: "vm-nexus-api", status: "ok" }));
+app.use("/api/auth", authRoutes);
+app.use("/api/integration", integrationRoutes);
+app.use("/api/tenants", tenantRoutes);
+app.use("/api/tenants/:tenantId/units", unitRoutes);
+app.use((error, _req, res, next) => {
+  void next;
+  console.error(error);
+  return res.status(error.code === "23505" ? 409 : 500).json({ error: error.code === "23505" ? "Identificador já cadastrado." : "Erro interno da VM Nexus." });
+});
