@@ -5,6 +5,7 @@ import authRoutes from "./routes/authRoutes.js";
 import tenantRoutes from "./routes/tenantRoutes.js";
 import unitRoutes from "./routes/unitRoutes.js";
 import integrationRoutes from "./routes/integrationRoutes.js";
+import planRoutes from "./routes/planRoutes.js";
 
 export const app = express();
 app.use(cors({ origin: env.corsOrigin }));
@@ -13,6 +14,7 @@ app.get("/api/health", (_req, res) => res.json({ service: "vm-nexus-api", status
 app.use("/api/auth", authRoutes);
 app.use("/api/integration", integrationRoutes);
 app.use("/api/tenants", tenantRoutes);
+app.use("/api/plans", planRoutes);
 app.use("/api/tenants/:tenantId/units", unitRoutes);
 app.use((error, _req, res, next) => {
   void next;

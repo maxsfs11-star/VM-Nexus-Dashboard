@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import "./plans.css";
+import "./plans-layout.css";
 import {
   alterarStatusTenant,
   alterarStatusUnidade,
@@ -9,6 +11,11 @@ import {
   criarUnidade,
   excluirTenant,
   excluirUnidade,
+  listarPlanos,
+  criarPlano,
+  atualizarPlano,
+  alterarStatusPlano,
+  atribuirPlanoTenant,
   listarTenants,
   listarUnidades,
   loginAdmin,
@@ -85,7 +92,7 @@ function TenantsView({ clientes, onNovoCliente, onSelecionar, onEditar, onAltern
     <div className="tenant-table"><div className="tenant-table-head"><span>Empresa</span><span>Produto</span><span>Unidades</span><span>Status e acesso</span></div>
       {clientes.map((cliente) => <div className="tenant-row" key={cliente.id || cliente.nome}>
         <div><span className="client-mark">{(cliente.name || cliente.nome).slice(0, 2).toUpperCase()}</span><span><strong>{cliente.name || cliente.nome}</strong><small>{cliente.slug || "ambiente-local"}</small></span></div>
-        <span>{cliente.product_key || cliente.produto || "—"}</span><span>{cliente.units ?? cliente.unidades ?? 0}</span>
+        <span>{cliente.product_key || cliente.produto || "—"}{cliente.plan_name && <small>Plano: {cliente.plan_name}</small>}</span><span>{cliente.units ?? cliente.unidades ?? 0}</span>
         <div className="tenant-actions"><div className="tenant-status"><div><em className={cliente.status === "suspended" ? "unit-inactive" : "unit-active"}>{cliente.status || "Configuração"}</em><em className={`access-badge ${cliente.access_level || "full"}`}>{cliente.access_level === "blocked" ? "Acesso bloqueado" : cliente.access_level === "limited" ? "Acesso limitado" : "Acesso normal"}</em></div><small>Vencimento: {formatDate(cliente.due_date)}{cliente.grace_period_until ? ` · tolerância até ${formatDate(cliente.grace_period_until)}` : ""}</small></div>{cliente.id && <><button onClick={() => onSelecionar(cliente)}>Unidades</button><button className="tenant-options-button" onClick={() => setOpcoesId(opcoesId === cliente.id ? null : cliente.id)}>Opções</button></>}</div>
         {opcoesId === cliente.id && <div className="tenant-options"><button onClick={() => setEditandoId(editandoId === cliente.id ? null : cliente.id)}>Editar empresa</button><button onClick={() => setCobrancaId(cobrancaId === cliente.id ? null : cliente.id)}>Cobrança e acesso</button><button onClick={() => onAlternar(cliente)}>{cliente.status === "suspended" ? "Ativar empresa" : "Desativar empresa"}</button><button className="unit-delete" onClick={() => onExcluir(cliente)}>Excluir empresa</button></div>}
         {editandoId === cliente.id && <TenantForm cliente={cliente} onSubmit={onEditar} onClose={() => setEditandoId(null)} />}
@@ -100,6 +107,35 @@ function UnidadesView({ tenant, unidades, onCriar, onAtualizar, onAlternar, onEx
   return <section className="units-view"><div className="view-heading"><div><span className="eyebrow">UNIDADES DO TENANT</span><h2>{tenant.name}</h2><p>Locais vinculados a este cliente e isolados pelo tenant.</p></div></div><div className="unit-content"><div className="unit-list">{unidades.map((unidade) => <article className="unit-card" key={unidade.id}><span className="client-mark">{unidade.name.slice(0, 2).toUpperCase()}</span><div><strong>{unidade.name}</strong><small>{unidade.slug} · {unidade.city || "Cidade não informada"}{unidade.state ? `/${unidade.state}` : ""}</small></div><em className={unidade.active ? "unit-active" : "unit-inactive"}>{unidade.active ? "Ativa" : "Desativada"}</em><div className="unit-card-actions"><button className="unit-edit" onClick={() => setEditandoId(editandoId === unidade.id ? null : unidade.id)}>{editandoId === unidade.id ? "Fechar" : "Editar"}</button><button className="unit-toggle" onClick={() => onAlternar(unidade)}>{unidade.active ? "Desativar" : "Ativar"}</button><button className="unit-delete" onClick={() => onExcluir(unidade)}>Excluir</button></div>{editandoId === unidade.id && <form className="unit-inline-form" onSubmit={(event) => { onAtualizar(event, unidade); setEditandoId(null); }}><label>Nome<input name="name" defaultValue={unidade.name} required /></label><label>Identificador<input name="slug" defaultValue={unidade.slug} pattern="[a-z0-9-]+" required /></label><div className="unit-form-grid"><label>Cidade<input name="city" defaultValue={unidade.city || ""} /></label><label>UF<input name="state" defaultValue={unidade.state || ""} maxLength="2" /></label></div><button type="submit">Salvar alterações</button></form>}</article>)}{!unidades.length && <div className="empty-state">Nenhuma unidade cadastrada para este tenant.</div>}</div><form className="unit-form" onSubmit={onCriar}><strong>Adicionar unidade</strong><label>Nome<input name="name" placeholder="Ex.: Matriz" required /></label><label>Identificador<input name="slug" placeholder="matriz" pattern="[a-z0-9-]+" required /></label><div className="unit-form-grid"><label>Cidade<input name="city" placeholder="Santa Fé do Sul" /></label><label>UF<input name="state" placeholder="SP" maxLength="2" /></label></div>{erro && <div className="login-error">{erro}</div>}<button type="submit" disabled={salvando}>{salvando ? "Salvando..." : "Adicionar unidade"}</button></form></div></section>;
 }
 
+function PlanosView({ planos, clientes, onNovo, onEditar, onAlternar, onAtribuir, salvando }) {
+  const [editando, setEditando] = useState(null);
+  const [tenantId, setTenantId] = useState("");
+  const [planoId, setPlanoId] = useState("");
+  const [status, setStatus] = useState("active");
+  const [erroAtivacao, setErroAtivacao] = useState("");
+  const [sucessoAtivacao, setSucessoAtivacao] = useState("");
+  const ativos = planos.filter((plano) => plano.active);
+  async function ativarPlano() {
+    setErroAtivacao("");
+    setSucessoAtivacao("");
+    try {
+      await onAtribuir({ tenantId, planId: planoId, status });
+      const cliente = clientes.find((item) => item.id === tenantId);
+      const plano = planos.find((item) => item.id === planoId);
+      setSucessoAtivacao(`${plano?.name || "Plano"} ativado para ${cliente?.name || "o cliente"}.`);
+    } catch (error) {
+      setErroAtivacao(error.message || "Não foi possível ativar o plano.");
+    }
+  }
+  return <section className="tenants-view plans-view">
+    <div className="view-heading"><div><span className="eyebrow">CATÁLOGO COMERCIAL</span><h2>Planos e assinaturas</h2><p>Defina os planos do MesaManda e ative o plano contratado por cada tenant.</p></div><button onClick={onNovo}>Novo plano</button></div>
+    <div className="tenant-summary"><article><small>Planos cadastrados</small><strong>{planos.length}</strong></article><article><small>Planos ativos</small><strong>{ativos.length}</strong></article><article><small>Tenants com assinatura</small><strong>{clientes.filter((cliente) => cliente.plan_id).length}</strong></article></div>
+    <div className="plans-grid">{planos.map((plano) => <article className="plan-card" key={plano.id}><div><span className="eyebrow">{plano.slug?.toUpperCase()}</span><h3>{plano.name}</h3><p>{plano.description || "Sem descrição cadastrada."}</p></div><strong className="plan-price">R$ {Number(plano.monthly_price || 0).toFixed(2).replace('.', ',')}<small>/mês</small></strong><small>{plano.subscribers || 0} assinatura(s) ativa(s)</small><div className="plan-actions"><button onClick={() => setEditando(plano)}>Editar</button><button onClick={() => onAlternar(plano)}>{plano.active ? "Desativar" : "Ativar"}</button></div></article>)}</div>
+    <div className="panel subscription-panel"><div className="panel-heading"><div><span className="eyebrow">ATIVAÇÃO</span><h2>Ativar plano para um cliente</h2></div></div>{erroAtivacao && <div className="login-error">{erroAtivacao}</div>}{sucessoAtivacao && <div className="success-message">{sucessoAtivacao}</div>}<div className="plan-assignment"><label>Cliente<select value={tenantId} onChange={(event) => setTenantId(event.target.value)}><option value="">Selecione um tenant</option>{clientes.map((cliente) => <option key={cliente.id} value={cliente.id}>{cliente.name} ({cliente.slug})</option>)}</select></label><label>Plano<select value={planoId} onChange={(event) => setPlanoId(event.target.value)}><option value="">Selecione um plano</option>{ativos.map((plano) => <option key={plano.id} value={plano.id}>{plano.name} — R$ {Number(plano.monthly_price || 0).toFixed(2).replace('.', ',')}</option>)}</select></label><label>Status<select value={status} onChange={(event) => setStatus(event.target.value)}><option value="active">Ativo</option><option value="trial">Período de teste</option><option value="paused">Pausado</option><option value="cancelled">Cancelado</option></select></label><button type="button" disabled={!tenantId || !planoId || salvando} onClick={ativarPlano}>{salvando ? "Salvando..." : "Ativar plano"}</button></div></div>
+    {editando && <form className="modal-backdrop" onSubmit={(event) => { event.preventDefault(); onEditar(editando.id, new FormData(event.currentTarget)); setEditando(null); }}><div className="tenant-modal"><div className="view-heading"><div><span className="eyebrow">EDITAR PLANO</span><h2>{editando.name}</h2></div><button type="button" onClick={() => setEditando(null)}>Fechar</button></div><label>Nome<input name="name" defaultValue={editando.name} required /></label><label>Descrição<input name="description" defaultValue={editando.description || ""} /></label><label>Mensalidade<input name="monthlyPrice" type="number" min="0" step="0.01" defaultValue={editando.monthly_price || 0} /></label><button className="tenant-submit" type="submit">Salvar plano</button></div></form>}
+  </section>;
+}
+
 function App() {
   const [secao, setSecao] = useState("visao");
   const [sessao, setSessao] = useState(() => { try { return JSON.parse(localStorage.getItem("vm_nexus_session") || "null"); } catch { return null; } });
@@ -109,12 +145,20 @@ function App() {
   const [formAberto, setFormAberto] = useState(false);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [planos, setPlanos] = useState([]);
 
   useEffect(() => { if (sessao?.token) listarTenants(sessao.token).then(({ tenants }) => setClientes(tenants)).catch((error) => setErro(error.message)); }, [sessao]);
+  useEffect(() => { if (sessao?.token && secao === "planos") listarPlanos(sessao.token).then(({ plans }) => setPlanos(plans)).catch((error) => setErro(error.message)); }, [sessao, secao]);
   useEffect(() => { if (sessao?.token && tenantSelecionado?.id) listarUnidades(sessao.token, tenantSelecionado.id).then(({ units }) => setUnidades(units)).catch((error) => setErro(error.message)); }, [sessao, tenantSelecionado]);
   if (!sessao) return <Login onLogin={(data) => { localStorage.setItem("vm_nexus_session", JSON.stringify(data)); setSessao(data); }} />;
+  if (secao === "planos") return <div className="nexus-app"><main><header className="topbar"><div><small>Central VM Nexus</small><strong>Planos e assinaturas</strong></div><div className="operator"><span>MN</span><div><strong>{sessao.admin.name}</strong><small>Administrador geral</small></div><button className="logout-button" onClick={() => setSecao("visao")}>Voltar</button></div></header><div className="workspace"><PlanosView planos={planos} clientes={clientes} onNovo={createPlan} onEditar={editPlan} onAlternar={togglePlan} onAtribuir={assignPlan} salvando={salvando} /></div></main></div>;
 
   async function refresh() { const { tenants } = await listarTenants(sessao.token); setClientes(tenants); }
+  async function refreshPlans() { const { plans } = await listarPlanos(sessao.token); setPlanos(plans); }
+  async function createPlan() { const name = window.prompt("Nome do plano:", "Novo plano"); if (!name) return; try { await criarPlano(sessao.token, { name, slug: name, description: "Plano personalizado", monthlyPrice: 0 }); await refreshPlans(); } catch (error) { setErro(error.message); } }
+  async function editPlan(planId, form) { try { await atualizarPlano(sessao.token, planId, { name: form.get("name"), description: form.get("description"), monthlyPrice: form.get("monthlyPrice") }); await refreshPlans(); } catch (error) { setErro(error.message); } }
+  async function togglePlan(plan) { try { await alterarStatusPlano(sessao.token, plan.id, !plan.active); await refreshPlans(); } catch (error) { setErro(error.message); } }
+  async function assignPlan({ tenantId, planId, status }) { setSalvando(true); try { await atribuirPlanoTenant(sessao.token, tenantId, { planId, status }); await refresh(); await refreshPlans(); setErro(""); } catch (error) { setErro(error.message); throw error; } finally { setSalvando(false); } }
   async function submitTenant(event, cliente = null) { event.preventDefault(); const formulario = event.currentTarget; setSalvando(true); setErro(""); const form = new FormData(formulario); try { if (formulario.classList.contains("billing-form")) { await atualizarCobrancaTenant(sessao.token, cliente.id, { dueDate: form.get("dueDate") || null, gracePeriodUntil: form.get("gracePeriodUntil") || null, billingStatus: form.get("billingStatus") }); } else { const payload = { name: form.get("name"), slug: form.get("slug"), productKey: form.get("productKey") }; if (cliente) await atualizarTenant(sessao.token, cliente.id, payload); else await criarTenant(sessao.token, payload); } await refresh(); setFormAberto(false); formulario.reset(); } catch (error) { setErro(error.message); } finally { setSalvando(false); } }
   async function toggleTenant(cliente) { try { await alterarStatusTenant(sessao.token, cliente.id, cliente.status === "suspended"); await refresh(); } catch (error) { setErro(error.message); } }
   async function deleteTenant(cliente) { if (!window.confirm(`Excluir a empresa “${cliente.name}”? Todas as unidades vinculadas também serão removidas.`)) return; try { await excluirTenant(sessao.token, cliente.id); await refresh(); if (tenantSelecionado?.id === cliente.id) setTenantSelecionado(null); } catch (error) { setErro(error.message); } }

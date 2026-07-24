@@ -61,3 +61,27 @@ export function alterarStatusUnidade(token, tenantId, unitId, active) {
 export function excluirUnidade(token, tenantId, unitId) {
   return request(`/api/tenants/${tenantId}/units/${unitId}`, { method: "DELETE", token });
 }
+
+export function listarPlanos(token, productKey = "mesamanda") {
+  return request(`/api/plans?productKey=${encodeURIComponent(productKey)}`, { token });
+}
+
+export function criarPlano(token, payload) {
+  return request("/api/plans", { method: "POST", token, body: JSON.stringify(payload) });
+}
+
+export function atualizarPlano(token, planId, payload) {
+  return request(`/api/plans/${planId}`, { method: "PUT", token, body: JSON.stringify(payload) });
+}
+
+export function alterarStatusPlano(token, planId, active) {
+  return request(`/api/plans/${planId}/status`, { method: "PATCH", token, body: JSON.stringify({ active }) });
+}
+
+export function consultarAssinaturaTenant(token, tenantId) {
+  return request(`/api/tenants/${tenantId}/subscription`, { token });
+}
+
+export function atribuirPlanoTenant(token, tenantId, payload) {
+  return request(`/api/tenants/${tenantId}/subscription`, { method: "PUT", token, body: JSON.stringify(payload) });
+}
