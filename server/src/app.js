@@ -7,12 +7,14 @@ import unitRoutes from "./routes/unitRoutes.js";
 import integrationRoutes from "./routes/integrationRoutes.js";
 import planRoutes from "./routes/planRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
+import studycodeAuthRoutes from "./routes/studycodeAuthRoutes.js";
 
 export const app = express();
 app.use(cors({ origin: env.corsOrigin }));
 app.use(express.json());
 app.get("/api/health", (_req, res) => res.json({ service: "vm-nexus-api", status: "ok" }));
 app.use("/api/auth", authRoutes);
+app.use("/api/studycode/auth", studycodeAuthRoutes);
 app.use("/api/integration", integrationRoutes);
 app.use("/api/tenants", tenantRoutes);
 app.use("/api/plans", planRoutes);

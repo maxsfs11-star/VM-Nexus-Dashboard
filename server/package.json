@@ -7,7 +7,7 @@
     "dev": "node --watch src/server.js",
     "prestart": "npm run migrate",
     "start": "node src/server.js",
-    "check": "node --check src/server.js && node --check src/app.js && node --check src/routes/unitRoutes.js && node --check src/routes/integrationRoutes.js && node --check src/routes/planRoutes.js && node --check src/routes/productRoutes.js && node --check src/routes/tenantRoutes.js && node --check src/scripts/migrate.js && node --check src/scripts/bootstrapAdmin.js",
+    "check": "node --check src/server.js && node --check src/app.js && node --check src/routes/unitRoutes.js && node --check src/routes/integrationRoutes.js && node --check src/routes/planRoutes.js && node --check src/routes/productRoutes.js && node --check src/routes/tenantRoutes.js && node --check src/routes/studycodeAuthRoutes.js && node --check src/middleware/authenticateStudent.js && node --check src/scripts/migrate.js && node --check src/scripts/bootstrapAdmin.js",
     "migrate": "node src/scripts/migrate.js",
     "bootstrap:admin": "node src/scripts/bootstrapAdmin.js"
   },
