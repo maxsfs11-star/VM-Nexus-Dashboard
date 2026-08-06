@@ -2,14 +2,7 @@
 -- para a liberação de módulos contratados por cada tenant.
 WITH produto AS (
   SELECT id FROM nexus_products WHERE slug = 'mesamanda'
-)
-UPDATE nexus_plans AS plano
-SET
-  features = configuracao.features::jsonb,
-  description = configuracao.description,
-  display_order = configuracao.display_order
-FROM produto
-INNER JOIN (
+), configuracao(slug, description, features, display_order) AS (
   VALUES
     (
       'starter',
@@ -29,6 +22,12 @@ INNER JOIN (
       '{"features":["manager","cashier","catalog","customers","inventory","cash_management","basic_reports","advanced_reports","team_management","salon","waiter","convenience","kitchen","grill","production","qr_ordering","smartflow","ai_weather","ai_intelligent_reports","ai_manager_assistant","ai_stock_insights","ai_operations_suggestions"]}',
       3
     )
-) AS configuracao(slug, description, features, display_order)
-  ON plano.slug = configuracao.slug
-WHERE plano.product_id = produto.id;
+)
+UPDATE nexus_plans AS plano
+SET
+  features = configuracao.features::jsonb,
+  description = configuracao.description,
+  display_order = configuracao.display_order
+FROM produto, configuracao
+WHERE plano.product_id = produto.id
+  AND plano.slug = configuracao.slug;
