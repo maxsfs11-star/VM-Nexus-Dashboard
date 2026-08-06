@@ -47,13 +47,21 @@ router.post("/register", async (req, res, next) => {
     const email = String(req.body?.email || "").trim().toLowerCase();
     const password = String(req.body?.password || "");
     const name = String(req.body?.name || "Estudante").trim().slice(0, 80) || "Estudante";
+    const acceptedTerms = req.body?.acceptedTerms === true;
+    const legalVersion = String(req.body?.legalVersion || "").trim();
     const validationError = validateCredentials(email, password);
     if (validationError) return res.status(400).json({ error: validationError });
+    if (!acceptedTerms || !legalVersion) {
+      return res.status(400).json({ error: "Aceite os Termos de Uso e a Política de Privacidade." });
+    }
 
     const passwordHash = await bcrypt.hash(password, 12);
     const result = await pool.query(
-      "INSERT INTO studycode_users (email, name, password_hash) VALUES ($1, $2, $3) RETURNING id, email, name",
-      [email, name, passwordHash],
+      `INSERT INTO studycode_users
+        (email, name, password_hash, terms_accepted_at, privacy_accepted_at, legal_version)
+       VALUES ($1, $2, $3, NOW(), NOW(), $4)
+       RETURNING id, email, name`,
+      [email, name, passwordHash, legalVersion],
     );
     const student = result.rows[0];
     const refreshToken = await issueRefreshToken(student.id);
