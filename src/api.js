@@ -14,6 +14,22 @@ export function loginAdmin(email, password) {
   return request("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
 }
 
+export function listarProdutos(token) {
+  return request("/api/products", { token });
+}
+
+export function criarProduto(token, payload) {
+  return request("/api/products", { method: "POST", token, body: JSON.stringify(payload) });
+}
+
+export function atualizarProduto(token, productId, payload) {
+  return request(`/api/products/${productId}`, { method: "PUT", token, body: JSON.stringify(payload) });
+}
+
+export function alterarStatusProduto(token, productId, active) {
+  return request(`/api/products/${productId}/status`, { method: "PATCH", token, body: JSON.stringify({ active }) });
+}
+
 export function listarTenants(token) {
   return request("/api/tenants", { token });
 }

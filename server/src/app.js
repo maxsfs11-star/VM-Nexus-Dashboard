@@ -6,6 +6,7 @@ import tenantRoutes from "./routes/tenantRoutes.js";
 import unitRoutes from "./routes/unitRoutes.js";
 import integrationRoutes from "./routes/integrationRoutes.js";
 import planRoutes from "./routes/planRoutes.js";
+import productRoutes from "./routes/productRoutes.js";
 
 export const app = express();
 app.use(cors({ origin: env.corsOrigin }));
@@ -15,6 +16,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/integration", integrationRoutes);
 app.use("/api/tenants", tenantRoutes);
 app.use("/api/plans", planRoutes);
+app.use("/api/products", productRoutes);
 app.use("/api/tenants/:tenantId/units", unitRoutes);
 app.use((error, _req, res, next) => {
   void next;

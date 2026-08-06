@@ -12,6 +12,10 @@ import {
   excluirTenant,
   excluirUnidade,
   listarPlanos,
+  listarProdutos,
+  criarProduto,
+  atualizarProduto,
+  alterarStatusProduto,
   criarPlano,
   atualizarPlano,
   alterarStatusPlano,
@@ -136,6 +140,16 @@ function PlanosView({ planos, clientes, onNovo, onEditar, onAlternar, onAtribuir
   </section>;
 }
 
+function ProdutosView({ produtos, onNovo, onEditar, onAlternar }) {
+  const [editando, setEditando] = useState(null);
+  return <section className="tenants-view plans-view">
+    <div className="view-heading"><div><span className="eyebrow">PORTFÓLIO VM NEXUS</span><h2>Produtos da VM Nexus</h2><p>Cadastre os aplicativos administrados pela central, como o StudyCode.</p></div><button onClick={onNovo}>Novo produto</button></div>
+    <div className="tenant-summary"><article><small>Produtos cadastrados</small><strong>{produtos.length}</strong></article><article><small>Em desenvolvimento</small><strong>{produtos.filter((produto) => produto.status === "development").length}</strong></article><article><small>Planos conectados</small><strong>{produtos.reduce((total, produto) => total + Number(produto.plan_count || 0), 0)}</strong></article></div>
+    <div className="plans-grid">{produtos.map((produto) => <article className="plan-card" key={produto.id}><div><span className="eyebrow">{produto.slug?.toUpperCase()}</span><h3>{produto.name}</h3><p>{produto.description || "Sem descrição cadastrada."}</p></div><small>{produto.plan_count || 0} plano(s) · {produto.tenant_count || 0} tenant(s)</small><strong>{produto.status === "development" ? "Em desenvolvimento" : produto.status === "available" ? "Disponível" : produto.status === "archived" ? "Arquivado" : "Planejado"}</strong><div className="plan-actions"><button onClick={() => setEditando(produto)}>Editar</button><button onClick={() => onAlternar(produto)}>{produto.status === "archived" ? "Reativar" : "Arquivar"}</button></div></article>)}</div>
+    {editando && <form className="modal-backdrop" onSubmit={(event) => { event.preventDefault(); onEditar(editando.id, new FormData(event.currentTarget)); setEditando(null); }}><div className="tenant-modal"><div className="view-heading"><div><span className="eyebrow">EDITAR PRODUTO</span><h2>{editando.name}</h2></div><button type="button" onClick={() => setEditando(null)}>Fechar</button></div><label>Nome<input name="name" defaultValue={editando.name} required /></label><label>Descrição<input name="description" defaultValue={editando.description || ""} /></label><label>Status<select name="status" defaultValue={editando.status}><option value="development">Em desenvolvimento</option><option value="available">Disponível</option><option value="planned">Planejado</option><option value="archived">Arquivado</option></select></label><button className="tenant-submit" type="submit">Salvar produto</button></div></form>}
+  </section>;
+}
+
 function App() {
   const [secao, setSecao] = useState("visao");
   const [sessao, setSessao] = useState(() => { try { return JSON.parse(localStorage.getItem("vm_nexus_session") || "null"); } catch { return null; } });
@@ -146,18 +160,25 @@ function App() {
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [planos, setPlanos] = useState([]);
+  const [produtosCadastrados, setProdutosCadastrados] = useState([]);
 
   useEffect(() => { if (sessao?.token) listarTenants(sessao.token).then(({ tenants }) => setClientes(tenants)).catch((error) => setErro(error.message)); }, [sessao]);
   useEffect(() => { if (sessao?.token && secao === "planos") listarPlanos(sessao.token).then(({ plans }) => setPlanos(plans)).catch((error) => setErro(error.message)); }, [sessao, secao]);
+  useEffect(() => { if (sessao?.token && secao === "produtos") listarProdutos(sessao.token).then(({ products }) => setProdutosCadastrados(products)).catch((error) => setErro(error.message)); }, [sessao, secao]);
   useEffect(() => { if (sessao?.token && tenantSelecionado?.id) listarUnidades(sessao.token, tenantSelecionado.id).then(({ units }) => setUnidades(units)).catch((error) => setErro(error.message)); }, [sessao, tenantSelecionado]);
   if (!sessao) return <Login onLogin={(data) => { localStorage.setItem("vm_nexus_session", JSON.stringify(data)); setSessao(data); }} />;
   if (secao === "planos") return <div className="nexus-app"><main><header className="topbar"><div><small>Central VM Nexus</small><strong>Planos e assinaturas</strong></div><div className="operator"><span>MN</span><div><strong>{sessao.admin.name}</strong><small>Administrador geral</small></div><button className="logout-button" onClick={() => setSecao("visao")}>Voltar</button></div></header><div className="workspace"><PlanosView planos={planos} clientes={clientes} onNovo={createPlan} onEditar={editPlan} onAlternar={togglePlan} onAtribuir={assignPlan} salvando={salvando} /></div></main></div>;
+  if (secao === "produtos") return <div className="nexus-app"><main><header className="topbar"><div><small>Central VM Nexus</small><strong>Produtos VM Nexus</strong></div><div className="operator"><span>MN</span><div><strong>{sessao.admin.name}</strong><small>Administrador geral</small></div><button className="logout-button" onClick={() => setSecao("visao")}>Voltar</button></div></header><div className="workspace"><ProdutosView produtos={produtosCadastrados} onNovo={createProduct} onEditar={editProduct} onAlternar={toggleProduct} /></div></main></div>;
 
   async function refresh() { const { tenants } = await listarTenants(sessao.token); setClientes(tenants); }
   async function refreshPlans() { const { plans } = await listarPlanos(sessao.token); setPlanos(plans); }
   async function createPlan() { const name = window.prompt("Nome do plano:", "Novo plano"); if (!name) return; try { await criarPlano(sessao.token, { name, slug: name, description: "Plano personalizado", monthlyPrice: 0 }); await refreshPlans(); } catch (error) { setErro(error.message); } }
   async function editPlan(planId, form) { try { await atualizarPlano(sessao.token, planId, { name: form.get("name"), description: form.get("description"), monthlyPrice: form.get("monthlyPrice") }); await refreshPlans(); } catch (error) { setErro(error.message); } }
   async function togglePlan(plan) { try { await alterarStatusPlano(sessao.token, plan.id, !plan.active); await refreshPlans(); } catch (error) { setErro(error.message); } }
+  async function refreshProducts() { const { products } = await listarProdutos(sessao.token); setProdutosCadastrados(products); }
+  async function createProduct() { const name = window.prompt("Nome do produto:", "StudyCode"); if (!name) return; const slug = window.prompt("Identificador:", name.toLowerCase().replace(/[^a-z0-9]+/g, "-")); if (!slug) return; const description = window.prompt("Descrição:", "Plataforma de ensino de programação da VM Nexus Digital."); try { await criarProduto(sessao.token, { name, slug, description, status: "development" }); await refreshProducts(); } catch (error) { setErro(error.message); } }
+  async function editProduct(productId, form) { try { await atualizarProduto(sessao.token, productId, { name: form.get("name"), description: form.get("description"), status: form.get("status") }); await refreshProducts(); } catch (error) { setErro(error.message); } }
+  async function toggleProduct(product) { try { await alterarStatusProduto(sessao.token, product.id, product.status === "archived" ? "development" : "archived"); await refreshProducts(); } catch (error) { setErro(error.message); } }
   async function assignPlan({ tenantId, planId, status }) { setSalvando(true); try { await atribuirPlanoTenant(sessao.token, tenantId, { planId, status }); await refresh(); await refreshPlans(); setErro(""); } catch (error) { setErro(error.message); throw error; } finally { setSalvando(false); } }
   async function submitTenant(event, cliente = null) { event.preventDefault(); const formulario = event.currentTarget; setSalvando(true); setErro(""); const form = new FormData(formulario); try { if (formulario.classList.contains("billing-form")) { await atualizarCobrancaTenant(sessao.token, cliente.id, { dueDate: form.get("dueDate") || null, gracePeriodUntil: form.get("gracePeriodUntil") || null, billingStatus: form.get("billingStatus") }); } else { const payload = { name: form.get("name"), slug: form.get("slug"), productKey: form.get("productKey") }; if (cliente) await atualizarTenant(sessao.token, cliente.id, payload); else await criarTenant(sessao.token, payload); } await refresh(); setFormAberto(false); formulario.reset(); } catch (error) { setErro(error.message); } finally { setSalvando(false); } }
   async function toggleTenant(cliente) { try { await alterarStatusTenant(sessao.token, cliente.id, cliente.status === "suspended"); await refresh(); } catch (error) { setErro(error.message); } }
