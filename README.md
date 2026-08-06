@@ -46,6 +46,13 @@ Endpoints iniciais:
 - `GET /api/auth/me`
 - `GET /api/tenants`
 - `POST /api/tenants`
+- `GET /api/products`
+- `POST /api/products`
+- `PUT /api/products/:productId`
+- `DELETE /api/products/:productId`
+- `GET /api/plans?productKey=mesamanda`
+
+O catálogo permite administrar sistemas, aplicativos web, serviços e aplicativos móveis para Web, Desktop, Android e iOS. Em uma instalação existente, execute `npm run migrate` dentro de `server/` para aplicar a estrutura nova.
 
 O Android exige Android Studio, SDK, NDK e configuração do ambiente. Depois dessa preparação:
 
@@ -54,6 +61,6 @@ npm run android:init
 npm run android:dev
 ```
 
-## Próxima etapa
+## Estado atual
 
-Criar o backend administrativo exclusivo da VM Nexus com autenticação própria, tenants, unidades, produtos, planos, assinaturas e auditoria.
+O backend administrativo já possui autenticação própria, tenants, unidades, catálogo de projetos, planos, assinaturas, regras de acesso e auditoria. Suporte, financeiro e a consulta visual dos registros de auditoria continuam como módulos futuros.

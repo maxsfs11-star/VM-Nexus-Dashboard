@@ -12,7 +12,9 @@ function dateOnly(value) {
 }
 
 function resolveAccess(tenant) {
+  if (tenant.plan_status === "paused" || tenant.plan_status === "cancelled") return "blocked";
   if (tenant.status === "suspended" || tenant.status === "closed") return "blocked";
+  if (tenant.billing_status === "cancelled") return "blocked";
   if (!tenant.due_date) return "full";
   const today = new Date().toISOString().slice(0, 10);
   const dueDate = dateOnly(tenant.due_date);
@@ -26,14 +28,19 @@ function withAccess(tenant) {
   return { ...tenant, access_level: resolveAccess(tenant) };
 }
 
+async function productExists(productKey, includeArchived = false) {
+  const result = await pool.query("SELECT 1 FROM nexus_products WHERE slug = $1 AND ($2 OR status <> 'archived')", [productKey, includeArchived]);
+  return Boolean(result.rows[0]);
+}
+
 router.get("/", async (_req, res, next) => {
   try {
     const result = await pool.query(`SELECT t.id, t.name, t.slug, t.product_key, t.status, t.billing_status, t.due_date, t.grace_period_until, t.created_at, COUNT(u.id)::int AS units,
-      plan.id AS plan_id, plan.name AS plan_name, plan.slug AS plan_slug, plan.monthly_price AS plan_monthly_price
+      plan.id AS plan_id, plan.name AS plan_name, plan.slug AS plan_slug, plan.monthly_price AS plan_monthly_price, plan.status AS plan_status
       FROM nexus_tenants t
       LEFT JOIN nexus_units u ON u.tenant_id = t.id
-      LEFT JOIN LATERAL (SELECT p.id, p.name, p.slug, p.monthly_price FROM nexus_subscriptions s JOIN nexus_plans p ON p.id = s.plan_id WHERE s.tenant_id = t.id AND s.status IN ('trial', 'active') ORDER BY s.started_at DESC LIMIT 1) plan ON TRUE
-      GROUP BY t.id, plan.id, plan.name, plan.slug, plan.monthly_price ORDER BY t.created_at DESC`);
+      LEFT JOIN LATERAL (SELECT p.id, p.name, p.slug, p.monthly_price, s.status FROM nexus_subscriptions s JOIN nexus_plans p ON p.id = s.plan_id WHERE s.tenant_id = t.id ORDER BY s.started_at DESC LIMIT 1) plan ON TRUE
+      GROUP BY t.id, plan.id, plan.name, plan.slug, plan.monthly_price, plan.status ORDER BY t.created_at DESC`);
     return res.json({ tenants: result.rows.map(withAccess) });
   } catch (error) { return next(error); }
 });
@@ -44,6 +51,7 @@ router.post("/", async (req, res, next) => {
     const slug = String(req.body?.slug || "").trim().toLowerCase();
     const productKey = String(req.body?.productKey || "mesamanda").trim().toLowerCase();
     if (!name || !slug) return res.status(400).json({ error: "Nome e identificador do tenant são obrigatórios." });
+    if (!(await productExists(productKey))) return res.status(400).json({ error: "Selecione um projeto ativo do catálogo." });
     const result = await pool.query("INSERT INTO nexus_tenants (name, slug, product_key) VALUES ($1, $2, $3) RETURNING id, name, slug, product_key, status, billing_status, due_date, grace_period_until, created_at", [name, slug, productKey]);
     await pool.query("INSERT INTO nexus_audit_logs (admin_user_id, action, entity_type, entity_id, metadata) VALUES ($1, $2, $3, $4, $5)", [req.admin.sub, "tenant.created", "tenant", result.rows[0].id, JSON.stringify({ name, slug, productKey })]);
     return res.status(201).json({ tenant: withAccess(result.rows[0]) });
@@ -56,6 +64,7 @@ router.put("/:tenantId", async (req, res, next) => {
     const slug = String(req.body?.slug || "").trim().toLowerCase();
     const productKey = String(req.body?.productKey || "mesamanda").trim().toLowerCase();
     if (!name || !slug) return res.status(400).json({ error: "Nome e identificador do tenant são obrigatórios." });
+    if (!(await productExists(productKey, true))) return res.status(400).json({ error: "Selecione um projeto válido do catálogo." });
     const result = await pool.query("UPDATE nexus_tenants SET name = $1, slug = $2, product_key = $3, updated_at = NOW() WHERE id = $4 RETURNING id, name, slug, product_key, status, billing_status, due_date, grace_period_until, created_at", [name, slug, productKey, req.params.tenantId]);
     if (!result.rows[0]) return res.status(404).json({ error: "Tenant não encontrado." });
     await pool.query("INSERT INTO nexus_audit_logs (admin_user_id, action, entity_type, entity_id, metadata) VALUES ($1, $2, $3, $4, $5)", [req.admin.sub, "tenant.updated", "tenant", result.rows[0].id, JSON.stringify({ name, slug, productKey })]);
@@ -89,13 +98,13 @@ router.patch("/:tenantId/billing", async (req, res, next) => {
 router.get("/:tenantId/access", async (req, res, next) => {
   try {
     const result = await pool.query(`SELECT t.id, t.name, t.status, t.billing_status, t.due_date, t.grace_period_until,
-      plan.id AS plan_id, plan.name AS plan_name, plan.slug AS plan_slug
+      plan.id AS plan_id, plan.name AS plan_name, plan.slug AS plan_slug, plan.status AS plan_status
       FROM nexus_tenants t
-      LEFT JOIN LATERAL (SELECT p.id, p.name, p.slug FROM nexus_subscriptions s JOIN nexus_plans p ON p.id = s.plan_id WHERE s.tenant_id = t.id AND s.status IN ('trial', 'active') ORDER BY s.started_at DESC LIMIT 1) plan ON TRUE
+      LEFT JOIN LATERAL (SELECT p.id, p.name, p.slug, s.status FROM nexus_subscriptions s JOIN nexus_plans p ON p.id = s.plan_id WHERE s.tenant_id = t.id ORDER BY s.started_at DESC LIMIT 1) plan ON TRUE
       WHERE t.id = $1`, [req.params.tenantId]);
     if (!result.rows[0]) return res.status(404).json({ error: "Tenant não encontrado." });
     const tenant = withAccess(result.rows[0]);
-    return res.json({ tenantId: tenant.id, accessLevel: tenant.access_level, billingStatus: tenant.billing_status, dueDate: tenant.due_date, gracePeriodUntil: tenant.grace_period_until, plan: tenant.plan_id ? { id: tenant.plan_id, name: tenant.plan_name, slug: tenant.plan_slug } : null });
+    return res.json({ tenantId: tenant.id, accessLevel: tenant.access_level, billingStatus: tenant.billing_status, dueDate: tenant.due_date, gracePeriodUntil: tenant.grace_period_until, plan: tenant.plan_id ? { id: tenant.plan_id, name: tenant.plan_name, slug: tenant.plan_slug, status: tenant.plan_status } : null });
   } catch (error) { return next(error); }
 });
 

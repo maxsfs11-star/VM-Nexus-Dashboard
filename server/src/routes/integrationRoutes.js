@@ -13,6 +13,7 @@ function dateOnly(value) {
 function resolveAccess(tenant) {
   if (tenant.plan_status === "paused" || tenant.plan_status === "cancelled") return "blocked";
   if (tenant.status === "suspended" || tenant.status === "closed") return "blocked";
+  if (tenant.billing_status === "cancelled") return "blocked";
   if (!tenant.due_date) return "full";
   const today = new Date().toISOString().slice(0, 10);
   const dueDate = dateOnly(tenant.due_date);

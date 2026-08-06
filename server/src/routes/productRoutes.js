@@ -3,7 +3,20 @@ import { pool } from "../config/database.js";
 import { authenticate } from "../middleware/authenticate.js";
 
 const router = Router();
+const PRODUCT_TYPES = new Set(["system", "mobile_app", "web_app", "service"]);
+const PRODUCT_STATUSES = new Set(["development", "available", "planned", "archived"]);
+const PLATFORMS = new Set(["web", "desktop", "android", "ios"]);
+
 router.use(authenticate);
+
+function normalizeSlug(value) {
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function normalizePlatforms(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map((item) => String(item).trim().toLowerCase()).filter((item) => PLATFORMS.has(item)))];
+}
 
 async function audit(req, action, entityId, metadata = {}) {
   await pool.query(
@@ -15,14 +28,13 @@ async function audit(req, action, entityId, metadata = {}) {
 router.get("/", async (_req, res, next) => {
   try {
     const result = await pool.query(`
-      SELECT product.id, product.name, product.slug, product.description, product.status,
-        product.created_at, COUNT(DISTINCT plan.id)::int AS plan_count,
-        COUNT(DISTINCT tenant.id)::int AS tenant_count
-      FROM nexus_products product
-      LEFT JOIN nexus_plans plan ON plan.product_id = product.id
-      LEFT JOIN nexus_tenants tenant ON tenant.product_key = product.slug
-      GROUP BY product.id
-      ORDER BY product.created_at DESC, product.name
+      SELECT p.id, p.name, p.slug, p.description, p.category, p.product_type, p.platforms, p.status,
+        p.created_at, p.updated_at, COUNT(DISTINCT t.id)::int AS tenants, COUNT(DISTINCT plans.id)::int AS plans
+      FROM nexus_products p
+      LEFT JOIN nexus_tenants t ON t.product_key = p.slug
+      LEFT JOIN nexus_plans plans ON plans.product_id = p.id
+      GROUP BY p.id
+      ORDER BY p.created_at DESC, p.name
     `);
     return res.json({ products: result.rows });
   } catch (error) { return next(error); }
@@ -31,15 +43,21 @@ router.get("/", async (_req, res, next) => {
 router.post("/", async (req, res, next) => {
   try {
     const name = String(req.body?.name || "").trim();
-    const slug = String(req.body?.slug || name).trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const slug = normalizeSlug(req.body?.slug || name);
     const description = String(req.body?.description || "").trim() || null;
-    const status = ["development", "available", "planned", "archived"].includes(req.body?.status) ? req.body.status : "development";
-    if (!name || !slug) return res.status(400).json({ error: "Nome e identificador do produto são obrigatórios." });
+    const category = String(req.body?.category || "").trim() || null;
+    const productType = String(req.body?.productType || "system").trim();
+    const status = String(req.body?.status || "planned").trim();
+    const platforms = normalizePlatforms(req.body?.platforms);
+    if (!name || !slug) return res.status(400).json({ error: "Nome e identificador do projeto são obrigatórios." });
+    if (!PRODUCT_TYPES.has(productType) || !PRODUCT_STATUSES.has(status)) return res.status(400).json({ error: "Tipo ou status do projeto inválido." });
+    if (!platforms.length) return res.status(400).json({ error: "Selecione pelo menos uma plataforma." });
     const result = await pool.query(
-      "INSERT INTO nexus_products (name, slug, description, status) VALUES ($1, $2, $3, $4) RETURNING *",
-      [name, slug, description, status],
+      `INSERT INTO nexus_products (name, slug, description, category, product_type, platforms, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [name, slug, description, category, productType, platforms, status],
     );
-    await audit(req, "product.created", result.rows[0].id, { name, slug });
+    await audit(req, "product.created", result.rows[0].id, { name, slug, productType, platforms });
     return res.status(201).json({ product: result.rows[0] });
   } catch (error) { return next(error); }
 });
@@ -48,26 +66,50 @@ router.put("/:productId", async (req, res, next) => {
   try {
     const name = String(req.body?.name || "").trim();
     const description = String(req.body?.description || "").trim() || null;
-    const status = ["development", "available", "planned", "archived"].includes(req.body?.status) ? req.body.status : "development";
-    if (!name) return res.status(400).json({ error: "Nome do produto é obrigatório." });
+    const category = String(req.body?.category || "").trim() || null;
+    const productType = String(req.body?.productType || "system").trim();
+    const status = String(req.body?.status || "planned").trim();
+    const platforms = normalizePlatforms(req.body?.platforms);
+    if (!name) return res.status(400).json({ error: "Nome do projeto é obrigatório." });
+    if (!PRODUCT_TYPES.has(productType) || !PRODUCT_STATUSES.has(status)) return res.status(400).json({ error: "Tipo ou status do projeto inválido." });
+    if (!platforms.length) return res.status(400).json({ error: "Selecione pelo menos uma plataforma." });
     const result = await pool.query(
-      "UPDATE nexus_products SET name = $1, description = $2, status = $3, updated_at = NOW() WHERE id = $4 RETURNING *",
-      [name, description, status, req.params.productId],
+      `UPDATE nexus_products SET name = $1, description = $2, category = $3, product_type = $4,
+       platforms = $5, status = $6, updated_at = NOW() WHERE id = $7 RETURNING *`,
+      [name, description, category, productType, platforms, status, req.params.productId],
     );
-    if (!result.rows[0]) return res.status(404).json({ error: "Produto não encontrado." });
-    await audit(req, "product.updated", result.rows[0].id, { name, status });
+    if (!result.rows[0]) return res.status(404).json({ error: "Projeto não encontrado." });
+    await audit(req, "product.updated", result.rows[0].id, { name, productType, status, platforms });
     return res.json({ product: result.rows[0] });
   } catch (error) { return next(error); }
 });
 
-router.patch("/:productId/status", async (req, res, next) => {
+router.delete("/:productId", async (req, res, next) => {
+  const client = await pool.connect();
   try {
-    const status = ["development", "available", "planned", "archived"].includes(req.body?.status) ? req.body.status : "development";
-    const result = await pool.query("UPDATE nexus_products SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *", [status, req.params.productId]);
-    if (!result.rows[0]) return res.status(404).json({ error: "Produto não encontrado." });
-    await audit(req, "product.status_changed", result.rows[0].id, { status });
-    return res.json({ product: result.rows[0] });
-  } catch (error) { return next(error); }
+    await client.query("BEGIN");
+    const product = await client.query("SELECT id, name, slug FROM nexus_products WHERE id = $1 FOR UPDATE", [req.params.productId]);
+    if (!product.rows[0]) { await client.query("ROLLBACK"); return res.status(404).json({ error: "Projeto não encontrado." }); }
+    const usage = await client.query(
+      `SELECT (SELECT COUNT(*)::int FROM nexus_tenants WHERE product_key = $1) AS tenants,
+        (SELECT COUNT(*)::int FROM nexus_plans WHERE product_id = $2) AS plans`,
+      [product.rows[0].slug, req.params.productId],
+    );
+    if (usage.rows[0].tenants || usage.rows[0].plans) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "Não é possível excluir um projeto vinculado a tenants ou planos. Arquive-o primeiro." });
+    }
+    await client.query("DELETE FROM nexus_products WHERE id = $1", [req.params.productId]);
+    await client.query(
+      "INSERT INTO nexus_audit_logs (admin_user_id, action, entity_type, entity_id, metadata) VALUES ($1, 'product.deleted', 'product', $2, $3)",
+      [req.admin.sub, req.params.productId, JSON.stringify({ name: product.rows[0].name, slug: product.rows[0].slug })],
+    );
+    await client.query("COMMIT");
+    return res.status(204).send();
+  } catch (error) {
+    await client.query("ROLLBACK");
+    return next(error);
+  } finally { client.release(); }
 });
 
 export default router;
