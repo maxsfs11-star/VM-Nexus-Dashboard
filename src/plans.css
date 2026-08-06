@@ -23,3 +23,5 @@
 .plan-assignment-collapsed summary > b { font-size: 24px; color: #0c81c1; transition: transform .2s ease; }
 .plan-assignment-collapsed[open] summary > b { transform: rotate(90deg); }
 .plan-assignment-body { padding: 0 24px 24px; }
+.checkbox-row { display: flex; align-items: center; gap: 10px; }
+.checkbox-row input { width: 18px; height: 18px; }
