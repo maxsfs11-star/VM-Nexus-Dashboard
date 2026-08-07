@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import "./workspace.css";
 import StudyCodeContentEditor from "./StudyCodeContentEditor";
 import StudyCodeAiManager from "./StudyCodeAiManager";
+import StudyCodeCommunityManager from "./StudyCodeCommunityManager";
 import {
   alterarStatusPlano, alterarStatusTenant, alterarStatusUnidade, atualizarPlano,
   atualizarProduto, atualizarTenant, criarPlano, criarProduto,
@@ -224,6 +225,7 @@ function StudyCodeWorkspace({ project, token: providedToken, onBack, setError: e
   if (tab.startsWith("project-")) { const mode = tab.replace("project-", ""); return <section className="project-workspace"><button className="back-link" onClick={onBack}>← Todos os projetos</button><div className="project-workspace-head"><div><span className="eyebrow">STUDYCODE</span><h1>{project.name}</h1><p>Gestão do produto e permissões administrativas.</p></div><span className="status-pill available">Workspace</span></div><nav className="workspace-tabs studycode-tabs">{tabs.map(([id, label]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>{label}</button>)}</nav><ProjectManagementPanel project={project} mode={mode} /></section>; }
   if (tab === "content") return <StudyCodeContentEditor project={project} token={token} tabs={tabs} tab={tab} setTab={setTab} onBack={onBack} onError={setError} />;
   if (tab === "ai") return <StudyCodeAiManager project={project} token={token} tabs={tabs} tab={tab} setTab={setTab} onBack={onBack} onError={setError} />;
+  if (tab === "community") return <StudyCodeCommunityManager project={project} token={token} tabs={tabs} tab={tab} setTab={setTab} onBack={onBack} onError={setError} />;
   async function openStudent(student) { try { setStudentDetail((await detalharStudyCodeAluno(token, student.id))); } catch (err) { setError(err.message); } }
   async function moderatePost(post, status) { try { await moderarStudyCodePost(token, post.id, { status }); await loadTab("community"); } catch (err) { setError(err.message); } }
   async function updateFeedback(item, status) { try { await atualizarStudyCodeFeedback(token, item.id, status); await loadTab("community"); } catch (err) { setError(err.message); } }

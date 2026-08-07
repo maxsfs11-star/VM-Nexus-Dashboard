@@ -183,6 +183,17 @@ router.get("/community", async (_req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+router.get("/community/posts/:postId", async (req, res, next) => {
+  try {
+    const [post, comments] = await Promise.all([
+      pool.query("SELECT post.id, post.title, post.body, post.category, post.status, post.pinned, post.created_at, student.name AS student_name, student.email AS student_email FROM studycode_community_posts post LEFT JOIN studycode_users student ON student.id = post.user_id WHERE post.id = $1", [req.params.postId]),
+      pool.query("SELECT comment.id, comment.body, comment.status, comment.created_at, student.name AS student_name, student.email AS student_email FROM studycode_community_comments comment LEFT JOIN studycode_users student ON student.id = comment.user_id WHERE comment.post_id = $1 ORDER BY comment.created_at ASC", [req.params.postId]),
+    ]);
+    if (!post.rows[0]) return res.status(404).json({ error: "Publicação não encontrada." });
+    return res.json({ post: post.rows[0], comments: comments.rows });
+  } catch (error) { return next(error); }
+});
+
 router.patch("/community/posts/:postId", async (req, res, next) => {
   try {
     const status = ["published", "hidden", "archived"].includes(req.body?.status) ? req.body.status : undefined;
@@ -198,6 +209,15 @@ router.patch("/community/feedback/:feedbackId", async (req, res, next) => {
     const result = await pool.query("UPDATE studycode_feedback SET status = COALESCE($1, status), updated_at = NOW() WHERE id = $2 RETURNING id, status", [status, req.params.feedbackId]);
     if (!result.rows[0]) return res.status(404).json({ error: "Feedback não encontrado." });
     return res.json({ feedback: result.rows[0] });
+  } catch (error) { return next(error); }
+});
+
+router.patch("/community/comments/:commentId", async (req, res, next) => {
+  try {
+    const status = ["published", "hidden"].includes(req.body?.status) ? req.body.status : undefined;
+    const result = await pool.query("UPDATE studycode_community_comments SET status = COALESCE($1, status) WHERE id = $2 RETURNING id, status", [status, req.params.commentId]);
+    if (!result.rows[0]) return res.status(404).json({ error: "Comentário não encontrado." });
+    return res.json({ comment: result.rows[0] });
   } catch (error) { return next(error); }
 });
 

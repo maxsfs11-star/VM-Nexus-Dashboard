@@ -118,8 +118,10 @@ export function listarStudyCodeIA(token) { return request("/api/studycode/admin/
 export function atualizarStudyCodeLimiteIA(token, planId, dailyLimit) { return request(`/api/studycode/admin/ai/plans/${planId}/limit`, { method: "PATCH", token, body: JSON.stringify({ dailyLimit }) }); }
 export function listarStudyCodeAnalytics(token) { return request("/api/studycode/admin/analytics", { token }); }
 export function listarStudyCodeComunidade(token) { return request("/api/studycode/admin/community", { token }); }
+export function detalharStudyCodePost(token, postId) { return request(`/api/studycode/admin/community/posts/${postId}`, { token }); }
 export function moderarStudyCodePost(token, postId, payload) { return request(`/api/studycode/admin/community/posts/${postId}`, { method: "PATCH", token, body: JSON.stringify(payload) }); }
 export function atualizarStudyCodeFeedback(token, feedbackId, status) { return request(`/api/studycode/admin/community/feedback/${feedbackId}`, { method: "PATCH", token, body: JSON.stringify({ status }) }); }
+export function moderarStudyCodeComentario(token, commentId, status) { return request(`/api/studycode/admin/community/comments/${commentId}`, { method: "PATCH", token, body: JSON.stringify({ status }) }); }
 export function listarStudyCodeEconomia(token) { return request("/api/studycode/admin/economy", { token }); }
 export function listarControlTower(token, params = {}) {
   const query = new URLSearchParams(params).toString();
