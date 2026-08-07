@@ -153,6 +153,16 @@ router.get("/ai", async (_req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+router.patch("/ai/plans/:planId/limit", async (req, res, next) => {
+  try {
+    const dailyLimit = Number(req.body?.dailyLimit);
+    if (!Number.isInteger(dailyLimit) || dailyLimit < 0 || dailyLimit > 100000) return res.status(400).json({ error: "O limite deve ser um número inteiro entre 0 e 100.000." });
+    const result = await pool.query("UPDATE nexus_plans SET features = jsonb_set(COALESCE(features, '{}'::jsonb), '{aiQuestionsPerDay}', to_jsonb($1::int), true) WHERE id = $2 RETURNING id, name, features", [dailyLimit, req.params.planId]);
+    if (!result.rows[0]) return res.status(404).json({ error: "Plano não encontrado." });
+    return res.json({ plan: result.rows[0], dailyLimit });
+  } catch (error) { return next(error); }
+});
+
 router.get("/analytics", async (_req, res, next) => {
   try {
     const [summary, activity] = await Promise.all([

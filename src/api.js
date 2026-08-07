@@ -115,6 +115,7 @@ export function atualizarStudyCodeAula(token, lessonId, payload) { return reques
 export function criarStudyCodeDesafio(token, payload) { return request("/api/studycode/admin/content/challenges", { method: "POST", token, body: JSON.stringify(payload) }); }
 export function atualizarStudyCodeDesafio(token, challengeId, payload) { return request(`/api/studycode/admin/content/challenges/${challengeId}`, { method: "PATCH", token, body: JSON.stringify(payload) }); }
 export function listarStudyCodeIA(token) { return request("/api/studycode/admin/ai", { token }); }
+export function atualizarStudyCodeLimiteIA(token, planId, dailyLimit) { return request(`/api/studycode/admin/ai/plans/${planId}/limit`, { method: "PATCH", token, body: JSON.stringify({ dailyLimit }) }); }
 export function listarStudyCodeAnalytics(token) { return request("/api/studycode/admin/analytics", { token }); }
 export function listarStudyCodeComunidade(token) { return request("/api/studycode/admin/community", { token }); }
 export function moderarStudyCodePost(token, postId, payload) { return request(`/api/studycode/admin/community/posts/${postId}`, { method: "PATCH", token, body: JSON.stringify(payload) }); }
