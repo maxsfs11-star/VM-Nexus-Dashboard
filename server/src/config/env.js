@@ -13,4 +13,6 @@ export const env = {
   adminEmail: process.env.NEXUS_ADMIN_EMAIL,
   adminPassword: process.env.NEXUS_ADMIN_PASSWORD,
   integrationSecret: process.env.NEXUS_INTEGRATION_SECRET || "",
+  paymentsMode: process.env.PAYMENTS_MODE || "test",
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY || "",
 };

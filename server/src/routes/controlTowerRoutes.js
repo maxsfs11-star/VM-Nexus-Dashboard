@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { pool } from "../config/database.js";
 import { authenticate } from "../middleware/authenticate.js";
+import { env } from "../config/env.js";
+import Stripe from "stripe";
 
 const router = Router();
 router.use(authenticate);
@@ -79,6 +81,34 @@ router.get("/financial/payments", async (req, res, next) => {
       WHERE ($1 = 'all' OR payment.status = $1)
       ORDER BY payment.due_date DESC, payment.created_at DESC`, [status]);
     return res.json({ payments: result.rows });
+  } catch (error) { return next(error); }
+});
+
+router.get("/financial/stripe/status", async (_req, res) => {
+  return res.json({ provider: "stripe", mode: env.paymentsMode, configured: Boolean(env.stripeSecretKey), testMode: env.paymentsMode !== "live" });
+});
+
+router.post("/financial/stripe/checkout", async (req, res, next) => {
+  try {
+    if (!env.stripeSecretKey) return res.status(503).json({ error: "Stripe ainda não está configurado no ambiente da API." });
+    if (env.paymentsMode === "live") return res.status(400).json({ error: "O checkout de teste está bloqueado enquanto PAYMENTS_MODE não for test." });
+    const tenantId = String(req.body?.tenantId || "").trim();
+    const amount = Number(req.body?.amount);
+    const description = String(req.body?.description || "Cobrança de teste VM Nexus").trim();
+    const successUrl = String(req.body?.successUrl || "").trim();
+    const cancelUrl = String(req.body?.cancelUrl || "").trim();
+    if (!tenantId || !Number.isFinite(amount) || amount <= 0 || !successUrl || !cancelUrl) return res.status(400).json({ error: "Cliente, valor e URLs de retorno são obrigatórios." });
+    const tenant = await pool.query("SELECT id, name, slug FROM nexus_tenants WHERE id = $1", [tenantId]);
+    if (!tenant.rows[0]) return res.status(404).json({ error: "Cliente não encontrado." });
+    const stripe = new Stripe(env.stripeSecretKey);
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [{ price_data: { currency: "brl", product_data: { name: description }, unit_amount: Math.round(amount * 100) }, quantity: 1 }],
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      metadata: { tenantId, tenantSlug: tenant.rows[0].slug, environment: "test" },
+    });
+    return res.json({ provider: "stripe", mode: env.paymentsMode, sessionId: session.id, checkoutUrl: session.url });
   } catch (error) { return next(error); }
 });
 

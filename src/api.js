@@ -131,6 +131,8 @@ export function listarFinanceiro(token) { return request("/api/control-tower/fin
 export function listarPagamentos(token, status = "all") { return request(`/api/control-tower/financial/payments?status=${encodeURIComponent(status)}`, { token }); }
 export function criarPagamento(token, payload) { return request("/api/control-tower/financial/payments", { method: "POST", token, body: JSON.stringify(payload) }); }
 export function atualizarPagamento(token, paymentId, payload) { return request(`/api/control-tower/financial/payments/${paymentId}`, { method: "PATCH", token, body: JSON.stringify(payload) }); }
+export function consultarStripeStatus(token) { return request("/api/control-tower/financial/stripe/status", { token }); }
+export function criarStripeCheckout(token, payload) { return request("/api/control-tower/financial/stripe/checkout", { method: "POST", token, body: JSON.stringify(payload) }); }
 export function listarAssinaturas(token, status = "all") { return request(`/api/control-tower/subscriptions?status=${encodeURIComponent(status)}`, { token }); }
 export function listarAnalyticsExecutivo(token, params = {}) { const query = new URLSearchParams(params).toString(); return request(`/api/control-tower/executive${query ? `?${query}` : ""}`, { token }); }
 export function listarAuditoria(token, search = "") { return request(`/api/control-tower/audit?search=${encodeURIComponent(search)}`, { token }); }
