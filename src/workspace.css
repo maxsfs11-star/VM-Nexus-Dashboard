@@ -24,8 +24,9 @@
 .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
 .project-card, .workspace-panel, .project-editor, .plan-editor, .compact-form, .empty-card { background: #fff; border: 1px solid #c5dced; border-radius: 14px; padding: 22px; box-shadow: 0 6px 16px rgba(18, 80, 126, .04); }
 .project-card { display: grid; align-content: start; gap: 16px; }
-.project-card-top { display: flex; align-items: center; gap: 11px; }
+.project-card { min-width: 0; }.project-card-top { display: flex; align-items: center; gap: 11px; min-width: 0; }
 .project-card-top > div { min-width: 0; flex: 1; }
+.project-card-top .eyebrow { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project-card h3 { margin: 1px 0 0; color: #093b69; font-size: 18px; }
 .project-card p { min-height: 42px; margin: 0; color: #587590; font-size: 13px; line-height: 1.55; }
 .project-symbol { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; flex: 0 0 auto; background: #1684db; color: #fff; font-size: 12px; font-weight: 900; }
@@ -43,7 +44,7 @@
 .project-editor input, .project-editor select, .project-editor textarea, .plan-editor input, .plan-editor textarea, .compact-form input { box-sizing: border-box; width: 100%; padding: 11px 12px; border: 1px solid #accde5; border-radius: 8px; background: #fbfdff; color: #103a5f; font: inherit; outline: none; }
 .project-editor textarea, .plan-editor textarea { resize: vertical; }.project-editor input:focus, .project-editor select:focus, .project-editor textarea:focus, .plan-editor input:focus, .plan-editor textarea:focus, .compact-form input:focus { border-color: #1a84d6; box-shadow: 0 0 0 3px #dff0fc; }
 .project-editor label small, .plan-editor label small { color: #638097; font-size: 11px; font-weight: 500; }
-.technology-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.technology-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 10px; }
 .field-title { display: block; margin-bottom: 9px; color: #16486f; font-size: 13px; }.field-title small { color: #638097; font-weight: 500; }
 .platform-picker { display: flex; flex-wrap: wrap; gap: 9px; }.platform-picker label { display: inline-flex !important; align-items: center; gap: 7px !important; padding: 9px 12px; border: 1px solid #c5dced; border-radius: 8px; background: #fbfdff; cursor: pointer; }.platform-picker input { width: auto !important; margin: 0; }
 .technology-option { display: grid !important; gap: 4px !important; padding: 15px; border: 1px solid #c5dced; border-radius: 10px; cursor: pointer; background: #fbfdff; }.technology-option.selected { border-color: #1485dc; background: #eaf6ff; box-shadow: inset 0 0 0 1px #1485dc; }.technology-option input { position: absolute; opacity: 0; width: 1px !important; }.technology-option small { color: #60819b; font-weight: 500; }

@@ -6,7 +6,7 @@ const router = Router();
 const PRODUCT_TYPES = new Set(["system", "mobile_app", "web_app", "service"]);
 const PRODUCT_STATUSES = new Set(["development", "available", "planned", "archived"]);
 const PLATFORMS = new Set(["web", "desktop", "android", "ios"]);
-const TECHNOLOGIES = new Set(["react", "android_studio", "tauri", "other"]);
+const TECHNOLOGIES = new Set(["react", "react_native", "android_studio", "xcode", "tauri", "other"]);
 
 router.use(authenticate);
 
