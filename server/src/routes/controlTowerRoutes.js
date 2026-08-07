@@ -67,6 +67,57 @@ router.get("/financial", async (_req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+router.get("/financial/payments", async (req, res, next) => {
+  try {
+    const status = String(req.query.status || "all").trim().toLowerCase();
+    const result = await pool.query(`
+      SELECT payment.id, payment.tenant_id, payment.amount, payment.status, payment.due_date,
+        payment.paid_at, payment.reference, payment.notes, payment.created_at, payment.updated_at,
+        tenant.name AS tenant_name, tenant.slug AS tenant_slug, tenant.product_key
+      FROM nexus_billing_payments payment
+      JOIN nexus_tenants tenant ON tenant.id = payment.tenant_id
+      WHERE ($1 = 'all' OR payment.status = $1)
+      ORDER BY payment.due_date DESC, payment.created_at DESC`, [status]);
+    return res.json({ payments: result.rows });
+  } catch (error) { return next(error); }
+});
+
+router.post("/financial/payments", async (req, res, next) => {
+  try {
+    const tenantId = String(req.body?.tenantId || "").trim();
+    const amount = Number(req.body?.amount);
+    const status = String(req.body?.status || "pending").trim().toLowerCase();
+    const dueDate = req.body?.dueDate || null;
+    const paidAt = status === "paid" ? (req.body?.paidAt || new Date().toISOString()) : null;
+    const reference = String(req.body?.reference || "").trim() || null;
+    const notes = String(req.body?.notes || "").trim() || null;
+    if (!tenantId || !Number.isFinite(amount) || amount < 0 || !dueDate) return res.status(400).json({ error: "Cliente, valor e vencimento são obrigatórios." });
+    if (!["pending", "paid", "past_due", "cancelled", "refunded"].includes(status)) return res.status(400).json({ error: "Status da cobrança inválido." });
+    const tenant = await pool.query("SELECT id, name FROM nexus_tenants WHERE id = $1", [tenantId]);
+    if (!tenant.rows[0]) return res.status(404).json({ error: "Cliente não encontrado." });
+    const result = await pool.query(`INSERT INTO nexus_billing_payments (tenant_id, amount, status, due_date, paid_at, reference, notes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`, [tenantId, amount, status, dueDate, paidAt, reference, notes]);
+    await pool.query("INSERT INTO nexus_audit_logs (admin_user_id, action, entity_type, entity_id, metadata) VALUES ($1, $2, $3, $4, $5)", [req.admin.sub, "billing_payment.created", "billing_payment", result.rows[0].id, JSON.stringify({ tenantId, amount, status, dueDate })]);
+    return res.status(201).json({ payment: result.rows[0] });
+  } catch (error) { return next(error); }
+});
+
+router.patch("/financial/payments/:paymentId", async (req, res, next) => {
+  try {
+    const amount = Number(req.body?.amount);
+    const status = String(req.body?.status || "pending").trim().toLowerCase();
+    const dueDate = req.body?.dueDate || null;
+    const paidAt = status === "paid" ? (req.body?.paidAt || new Date().toISOString()) : null;
+    const reference = String(req.body?.reference || "").trim() || null;
+    const notes = String(req.body?.notes || "").trim() || null;
+    if (!Number.isFinite(amount) || amount < 0 || !dueDate) return res.status(400).json({ error: "Valor e vencimento são obrigatórios." });
+    if (!["pending", "paid", "past_due", "cancelled", "refunded"].includes(status)) return res.status(400).json({ error: "Status da cobrança inválido." });
+    const result = await pool.query(`UPDATE nexus_billing_payments SET amount = $1, status = $2, due_date = $3, paid_at = $4, reference = $5, notes = $6, updated_at = NOW() WHERE id = $7 RETURNING *`, [amount, status, dueDate, paidAt, reference, notes, req.params.paymentId]);
+    if (!result.rows[0]) return res.status(404).json({ error: "Cobrança não encontrada." });
+    await pool.query("INSERT INTO nexus_audit_logs (admin_user_id, action, entity_type, entity_id, metadata) VALUES ($1, $2, $3, $4, $5)", [req.admin.sub, "billing_payment.updated", "billing_payment", result.rows[0].id, JSON.stringify({ amount, status, dueDate })]);
+    return res.json({ payment: result.rows[0] });
+  } catch (error) { return next(error); }
+});
+
 router.get("/subscriptions", async (req, res, next) => {
   try {
     const status = String(req.query.status || "all").trim().toLowerCase();
