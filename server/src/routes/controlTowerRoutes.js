@@ -75,4 +75,42 @@ router.get("/subscriptions", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+router.get("/executive", async (req, res, next) => {
+  try {
+    const end = dateParam(req.query.to, new Date());
+    const defaultStart = new Date(end); defaultStart.setDate(defaultStart.getDate() - 30);
+    const start = dateParam(req.query.from, defaultStart);
+    const [summary, trends, tracks] = await Promise.all([
+      pool.query(`SELECT
+        COALESCE((SELECT SUM(plan.monthly_price) FROM nexus_subscriptions subscription JOIN nexus_plans plan ON plan.id = subscription.plan_id WHERE subscription.status = 'active'), 0)::numeric AS mrr,
+        (SELECT COUNT(*) FROM nexus_subscriptions WHERE status = 'active')::int AS active_subscriptions,
+        (SELECT COUNT(*) FROM studycode_users)::int AS total_students,
+        (SELECT COUNT(*) FROM studycode_users WHERE active = TRUE)::int AS active_students,
+        (SELECT COUNT(*) FROM studycode_users WHERE COALESCE(last_active_at, created_at) >= $1 AND COALESCE(last_active_at, created_at) < $2)::int AS active_students_period,
+        (SELECT COUNT(*) FROM studycode_lesson_progress WHERE completed_at >= $1 AND completed_at < $2)::int AS completed_lessons,
+        (SELECT COUNT(*) FROM studycode_ai_questions WHERE created_at >= $1 AND created_at < $2)::int AS ai_questions,
+        (SELECT COALESCE(SUM(amount), 0) FROM studycode_coin_transactions WHERE created_at >= $1 AND created_at < $2)::int AS coins_moved,
+        (SELECT COUNT(*) FROM studycode_certificates WHERE issued_at >= $1 AND issued_at < $2)::int AS certificates_issued,
+        (SELECT COUNT(*) FROM studycode_feedback WHERE status IN ('open', 'in_progress'))::int AS open_feedback`, [start, end]),
+      pool.query(`SELECT days.day::date AS day,
+        (SELECT COUNT(*) FROM studycode_users WHERE created_at >= days.day AND created_at < days.day + INTERVAL '1 day')::int AS new_students,
+        (SELECT COUNT(*) FROM studycode_users WHERE COALESCE(last_active_at, created_at) >= days.day AND COALESCE(last_active_at, created_at) < days.day + INTERVAL '1 day')::int AS active_students,
+        (SELECT COUNT(*) FROM studycode_lesson_progress WHERE completed_at >= days.day AND completed_at < days.day + INTERVAL '1 day')::int AS completed_lessons,
+        (SELECT COUNT(*) FROM studycode_ai_questions WHERE created_at >= days.day AND created_at < days.day + INTERVAL '1 day')::int AS ai_questions
+        FROM generate_series(DATE_TRUNC('day', $1::timestamptz), DATE_TRUNC('day', $2::timestamptz) - INTERVAL '1 day', INTERVAL '1 day') days(day) ORDER BY days.day`, [start, end]),
+      pool.query(`SELECT track.name, COUNT(progress.id) FILTER (WHERE progress.completed_at IS NOT NULL)::int AS completed_lessons, COUNT(DISTINCT progress.user_id)::int AS students FROM studycode_tracks track LEFT JOIN studycode_modules module ON module.track_id = track.id LEFT JOIN studycode_lessons lesson ON lesson.module_id = module.id LEFT JOIN studycode_lesson_progress progress ON progress.lesson_id = lesson.id WHERE track.active = TRUE GROUP BY track.id ORDER BY completed_lessons DESC, track.name LIMIT 8`),
+    ]);
+    return res.json({ period: { from: start.toISOString(), to: end.toISOString() }, summary: summary.rows[0], trends: trends.rows, tracks: tracks.rows });
+  } catch (error) { return next(error); }
+});
+
+router.get("/audit", async (req, res, next) => {
+  try {
+    const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
+    const search = String(req.query.search || "").trim();
+    const result = await pool.query(`SELECT log.id, log.action, log.entity_type, log.entity_id, log.metadata, log.created_at, admin.name AS admin_name, admin.email AS admin_email FROM nexus_audit_logs log LEFT JOIN nexus_admin_users admin ON admin.id = log.admin_user_id WHERE ($1 = '' OR log.action ILIKE '%' || $1 || '%' OR log.entity_type ILIKE '%' || $1 || '%' OR admin.name ILIKE '%' || $1 || '%') ORDER BY log.created_at DESC LIMIT $2`, [search, limit]);
+    return res.json({ logs: result.rows });
+  } catch (error) { return next(error); }
+});
+
 export default router;

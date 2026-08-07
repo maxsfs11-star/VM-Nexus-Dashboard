@@ -1,0 +1,15 @@
+import { useEffect, useState } from "react";
+import { listarAuditoria } from "./api";
+
+function AuditLogView({ token, onError }) {
+  const [logs, setLogs] = useState([]); const [search, setSearch] = useState(""); const [loading, setLoading] = useState(false);
+  async function load() { setLoading(true); try { setLogs((await listarAuditoria(token, search)).logs); } catch (error) { onError(error.message); } finally { setLoading(false); } }
+  // Audit records are loaded from the protected administrative history endpoint.
+  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [token]);
+  function metadata(value) { if (!value) return "—"; if (typeof value === "object") return JSON.stringify(value); try { return JSON.stringify(JSON.parse(value)); } catch { return String(value); } }
+  function exportCsv() { const rows = logs.map((item) => [item.admin_name || item.admin_email || "Sistema", item.action, item.entity_type, new Date(item.created_at).toLocaleString("pt-BR"), metadata(item.metadata)]); const csv = [["Administrador", "Ação", "Entidade", "Data", "Detalhes"], ...rows].map((row) => row.map((cell) => "\"" + String(cell).replaceAll("\"", "\"\"") + "\"").join(",")).join("\n"); const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = "auditoria-vm-nexus.csv"; link.click(); URL.revokeObjectURL(url); }
+  return <section className="page-section audit-page"><div className="page-heading"><div><span className="eyebrow">SEGURANÇA E GOVERNANÇA</span><h1>Auditoria</h1><p>Saiba quem alterou planos, projetos, empresas, permissões e conteúdo.</p></div><div className="action-row"><input className="directory-search" value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => event.key === "Enter" && load()} placeholder="Buscar ação, entidade ou administrador" /><button className="button-quiet" onClick={load}>{loading ? "Atualizando..." : "Buscar"}</button><button className="button-quiet" onClick={exportCsv}>Exportar CSV</button></div></div><div className="audit-callout"><strong>Histórico protegido</strong><span>Os registros são gravados automaticamente nas operações administrativas e ajudam a investigar alterações.</span></div><div className="audit-table"><div className="audit-head"><span>Administrador</span><span>Ação</span><span>Entidade</span><span>Detalhes</span><span>Data</span></div>{logs.map((item) => <div className="audit-row" key={item.id}><span><strong>{item.admin_name || "Sistema"}</strong><small>{item.admin_email || ""}</small></span><span><strong>{item.action}</strong></span><span>{item.entity_type}</span><span className="audit-metadata">{metadata(item.metadata)}</span><span>{new Date(item.created_at).toLocaleString("pt-BR")}</span></div>)}</div>{!logs.length && <div className="empty-card"><h3>Nenhum registro encontrado.</h3><p>As próximas ações administrativas aparecerão aqui.</p></div>}</section>;
+}
+
+export default AuditLogView;

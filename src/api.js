@@ -129,5 +129,7 @@ export function listarControlTower(token, params = {}) {
 }
 export function listarFinanceiro(token) { return request("/api/control-tower/financial", { token }); }
 export function listarAssinaturas(token, status = "all") { return request(`/api/control-tower/subscriptions?status=${encodeURIComponent(status)}`, { token }); }
+export function listarAnalyticsExecutivo(token, params = {}) { const query = new URLSearchParams(params).toString(); return request(`/api/control-tower/executive${query ? `?${query}` : ""}`, { token }); }
+export function listarAuditoria(token, search = "") { return request(`/api/control-tower/audit?search=${encodeURIComponent(search)}`, { token }); }
 export function listarAdministradores(token) { return request("/api/admin-users", { token }); }
 export function atualizarAdministrador(token, adminId, payload) { return request(`/api/admin-users/${adminId}`, { method: "PATCH", token, body: JSON.stringify(payload) }); }
