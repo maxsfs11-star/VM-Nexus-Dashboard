@@ -74,7 +74,7 @@ router.get("/financial/payments", async (req, res, next) => {
     const status = String(req.query.status || "all").trim().toLowerCase();
     const result = await pool.query(`
       SELECT payment.id, payment.tenant_id, payment.amount, payment.status, payment.due_date,
-        payment.paid_at, payment.reference, payment.notes, payment.created_at, payment.updated_at,
+        payment.paid_at, payment.reference, payment.notes, payment.provider, payment.external_id, payment.payment_method, payment.created_at, payment.updated_at,
         tenant.name AS tenant_name, tenant.slug AS tenant_slug, tenant.product_key
       FROM nexus_billing_payments payment
       JOIN nexus_tenants tenant ON tenant.id = payment.tenant_id
@@ -108,6 +108,7 @@ router.post("/financial/stripe/checkout", async (req, res, next) => {
       cancel_url: cancelUrl,
       metadata: { tenantId, tenantSlug: tenant.rows[0].slug, environment: "test" },
     });
+    await pool.query(`INSERT INTO nexus_billing_payments (tenant_id, amount, status, due_date, provider, external_id, reference) VALUES ($1, $2, 'pending', CURRENT_DATE, 'stripe', $3, $4) ON CONFLICT (provider, external_id) DO NOTHING`, [tenantId, amount, session.id, `Stripe Checkout ${session.id}`]);
     return res.json({ provider: "stripe", mode: env.paymentsMode, sessionId: session.id, checkoutUrl: session.url });
   } catch (error) { return next(error); }
 });

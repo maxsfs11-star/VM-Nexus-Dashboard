@@ -12,9 +12,11 @@ import studycodeCatalogRoutes from "./routes/studycodeCatalogRoutes.js";
 import studycodeAdminRoutes from "./routes/studycodeAdminRoutes.js";
 import controlTowerRoutes from "./routes/controlTowerRoutes.js";
 import adminUserRoutes from "./routes/adminUserRoutes.js";
+import stripeWebhookRoutes from "./routes/stripeWebhookRoutes.js";
 
 export const app = express();
 app.use(cors({ origin: env.corsOrigin }));
+app.use("/api/webhooks", express.raw({ type: "application/json" }), stripeWebhookRoutes);
 app.use(express.json());
 app.get("/api/health", (_req, res) => res.json({ service: "vm-nexus-api", status: "ok" }));
 app.use("/api/auth", authRoutes);
