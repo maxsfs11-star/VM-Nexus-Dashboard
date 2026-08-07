@@ -24,6 +24,11 @@ function normalizeTechnology(value) {
   return TECHNOLOGIES.has(technology) ? technology : "other";
 }
 
+function normalizeTechnologies(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map((item) => normalizeTechnology(item)).filter((item) => item !== "other"))].slice(0, 3);
+}
+
 async function audit(req, action, entityId, metadata = {}) {
   await pool.query(
     "INSERT INTO nexus_audit_logs (admin_user_id, action, entity_type, entity_id, metadata) VALUES ($1, $2, 'product', $3, $4)",
@@ -34,7 +39,7 @@ async function audit(req, action, entityId, metadata = {}) {
 router.get("/", async (_req, res, next) => {
   try {
     const result = await pool.query(`
-      SELECT p.id, p.name, p.slug, p.description, p.category, p.product_type, p.platforms, p.technology, p.tenant_enabled, p.status,
+      SELECT p.id, p.name, p.slug, p.description, p.category, p.product_type, p.platforms, p.technology, p.technologies, p.tenant_enabled, p.status,
         p.created_at, p.updated_at, COUNT(DISTINCT t.id)::int AS tenants, COUNT(DISTINCT plans.id)::int AS plans
       FROM nexus_products p
       LEFT JOIN nexus_tenants t ON t.product_key = p.slug
@@ -55,17 +60,19 @@ router.post("/", async (req, res, next) => {
     const productType = String(req.body?.productType || "system").trim();
     const status = String(req.body?.status || "planned").trim();
     const platforms = normalizePlatforms(req.body?.platforms);
-    const technology = normalizeTechnology(req.body?.technology);
-    const tenantEnabled = technology === "tauri" && Boolean(req.body?.tenantEnabled);
+    const technologies = normalizeTechnologies(req.body?.technologies);
+    const technology = normalizeTechnology(req.body?.technology || technologies[0]);
+    if (!technologies.length) technologies.push(technology);
+    const tenantEnabled = technologies.includes("tauri") && Boolean(req.body?.tenantEnabled);
     if (!name || !slug) return res.status(400).json({ error: "Nome e identificador do projeto são obrigatórios." });
     if (!PRODUCT_TYPES.has(productType) || !PRODUCT_STATUSES.has(status)) return res.status(400).json({ error: "Tipo ou status do projeto inválido." });
     if (!platforms.length) return res.status(400).json({ error: "Selecione pelo menos uma plataforma." });
     const result = await pool.query(
-      `INSERT INTO nexus_products (name, slug, description, category, product_type, platforms, technology, tenant_enabled, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [name, slug, description, category, productType, platforms, technology, tenantEnabled, status],
+      `INSERT INTO nexus_products (name, slug, description, category, product_type, platforms, technology, technologies, tenant_enabled, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [name, slug, description, category, productType, platforms, technology, technologies, tenantEnabled, status],
     );
-    await audit(req, "product.created", result.rows[0].id, { name, slug, productType, technology, tenantEnabled, platforms });
+    await audit(req, "product.created", result.rows[0].id, { name, slug, productType, technology, technologies, tenantEnabled, platforms });
     return res.status(201).json({ product: result.rows[0] });
   } catch (error) { return next(error); }
 });
@@ -78,18 +85,20 @@ router.put("/:productId", async (req, res, next) => {
     const productType = String(req.body?.productType || "system").trim();
     const status = String(req.body?.status || "planned").trim();
     const platforms = normalizePlatforms(req.body?.platforms);
-    const technology = normalizeTechnology(req.body?.technology);
-    const tenantEnabled = technology === "tauri" && Boolean(req.body?.tenantEnabled);
+    const technologies = normalizeTechnologies(req.body?.technologies);
+    const technology = normalizeTechnology(req.body?.technology || technologies[0]);
+    if (!technologies.length) technologies.push(technology);
+    const tenantEnabled = technologies.includes("tauri") && Boolean(req.body?.tenantEnabled);
     if (!name) return res.status(400).json({ error: "Nome do projeto é obrigatório." });
     if (!PRODUCT_TYPES.has(productType) || !PRODUCT_STATUSES.has(status)) return res.status(400).json({ error: "Tipo ou status do projeto inválido." });
     if (!platforms.length) return res.status(400).json({ error: "Selecione pelo menos uma plataforma." });
     const result = await pool.query(
       `UPDATE nexus_products SET name = $1, description = $2, category = $3, product_type = $4,
-       platforms = $5, technology = $6, tenant_enabled = $7, status = $8, updated_at = NOW() WHERE id = $9 RETURNING *`,
-      [name, description, category, productType, platforms, technology, tenantEnabled, status, req.params.productId],
+       platforms = $5, technology = $6, technologies = $7, tenant_enabled = $8, status = $9, updated_at = NOW() WHERE id = $10 RETURNING *`,
+      [name, description, category, productType, platforms, technology, technologies, tenantEnabled, status, req.params.productId],
     );
     if (!result.rows[0]) return res.status(404).json({ error: "Projeto não encontrado." });
-    await audit(req, "product.updated", result.rows[0].id, { name, productType, technology, tenantEnabled, status, platforms });
+    await audit(req, "product.updated", result.rows[0].id, { name, productType, technology, technologies, tenantEnabled, status, platforms });
     return res.json({ product: result.rows[0] });
   } catch (error) { return next(error); }
 });
