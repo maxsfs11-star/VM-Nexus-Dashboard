@@ -50,6 +50,32 @@ router.get("/content", async (_req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+router.get("/content/:trackId", async (req, res, next) => {
+  try {
+    const [track, modules, lessons, challenges] = await Promise.all([
+      pool.query("SELECT id, name, slug, description, active FROM studycode_tracks WHERE id = $1", [req.params.trackId]),
+      pool.query("SELECT id, track_id, name, description, display_order, active FROM studycode_modules WHERE track_id = $1 ORDER BY display_order, name", [req.params.trackId]),
+      pool.query("SELECT lesson.id, lesson.module_id, lesson.name, lesson.content, lesson.display_order, lesson.active FROM studycode_lessons lesson JOIN studycode_modules module ON module.id = lesson.module_id WHERE module.track_id = $1 ORDER BY lesson.display_order, lesson.name", [req.params.trackId]),
+      pool.query("SELECT challenge.id, challenge.lesson_id, challenge.name, challenge.statement, challenge.difficulty, challenge.active FROM studycode_challenges challenge JOIN studycode_lessons lesson ON lesson.id = challenge.lesson_id JOIN studycode_modules module ON module.id = lesson.module_id WHERE module.track_id = $1 ORDER BY challenge.name", [req.params.trackId]),
+    ]);
+    if (!track.rows[0]) return res.status(404).json({ error: "Trilha não encontrada." });
+    return res.json({ track: track.rows[0], modules: modules.rows, lessons: lessons.rows, challenges: challenges.rows });
+  } catch (error) { return next(error); }
+});
+
+function contentText(value, fallback = "") { return String(value ?? fallback).trim(); }
+function contentSlug(value) { return contentText(value).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 70); }
+
+router.post("/content/tracks", async (req, res, next) => {
+  try {
+    const name = contentText(req.body?.name); const description = contentText(req.body?.description) || null;
+    if (!name) return res.status(400).json({ error: "Nome da trilha é obrigatório." });
+    const slug = contentSlug(name) || `trilha-${Date.now()}`;
+    const result = await pool.query("INSERT INTO studycode_tracks (name, slug, description) VALUES ($1, $2, $3) RETURNING id, name, slug, description, active", [name, slug, description]);
+    return res.status(201).json({ track: result.rows[0] });
+  } catch (error) { return next(error); }
+});
+
 router.patch("/content/tracks/:trackId", async (req, res, next) => {
   try {
     const name = String(req.body?.name || "").trim(); const description = String(req.body?.description || "").trim() || null;
@@ -57,6 +83,63 @@ router.patch("/content/tracks/:trackId", async (req, res, next) => {
     const result = await pool.query("UPDATE studycode_tracks SET name = $1, description = $2, updated_at = NOW() WHERE id = $3 RETURNING id, name, slug, description, active", [name, description, req.params.trackId]);
     if (!result.rows[0]) return res.status(404).json({ error: "Trilha não encontrada." });
     return res.json({ track: result.rows[0] });
+  } catch (error) { return next(error); }
+});
+
+router.post("/content/modules", async (req, res, next) => {
+  try {
+    const trackId = contentText(req.body?.trackId); const name = contentText(req.body?.name); const description = contentText(req.body?.description) || null;
+    if (!trackId || !name) return res.status(400).json({ error: "Trilha e nome do módulo são obrigatórios." });
+    const result = await pool.query("INSERT INTO studycode_modules (track_id, name, description, display_order) VALUES ($1, $2, $3, COALESCE((SELECT MAX(display_order) + 1 FROM studycode_modules WHERE track_id = $1), 0)) RETURNING id, track_id, name, description, display_order, active", [trackId, name, description]);
+    return res.status(201).json({ module: result.rows[0] });
+  } catch (error) { return next(error); }
+});
+
+router.patch("/content/modules/:moduleId", async (req, res, next) => {
+  try {
+    const name = contentText(req.body?.name); const description = contentText(req.body?.description) || null; const active = typeof req.body?.active === "boolean" ? req.body.active : null;
+    if (!name) return res.status(400).json({ error: "Nome do módulo é obrigatório." });
+    const result = await pool.query("UPDATE studycode_modules SET name = $1, description = $2, active = COALESCE($3, active) WHERE id = $4 RETURNING id, track_id, name, description, display_order, active", [name, description, active, req.params.moduleId]);
+    if (!result.rows[0]) return res.status(404).json({ error: "Módulo não encontrado." });
+    return res.json({ module: result.rows[0] });
+  } catch (error) { return next(error); }
+});
+
+router.post("/content/lessons", async (req, res, next) => {
+  try {
+    const moduleId = contentText(req.body?.moduleId); const name = contentText(req.body?.name); const content = contentText(req.body?.content) || null;
+    if (!moduleId || !name) return res.status(400).json({ error: "Módulo e nome da aula são obrigatórios." });
+    const result = await pool.query("INSERT INTO studycode_lessons (module_id, name, content, display_order) VALUES ($1, $2, $3, COALESCE((SELECT MAX(display_order) + 1 FROM studycode_lessons WHERE module_id = $1), 0)) RETURNING id, module_id, name, content, display_order, active", [moduleId, name, content]);
+    return res.status(201).json({ lesson: result.rows[0] });
+  } catch (error) { return next(error); }
+});
+
+router.patch("/content/lessons/:lessonId", async (req, res, next) => {
+  try {
+    const name = contentText(req.body?.name); const content = contentText(req.body?.content) || null; const active = typeof req.body?.active === "boolean" ? req.body.active : null;
+    if (!name) return res.status(400).json({ error: "Nome da aula é obrigatório." });
+    const result = await pool.query("UPDATE studycode_lessons SET name = $1, content = $2, active = COALESCE($3, active) WHERE id = $4 RETURNING id, module_id, name, content, display_order, active", [name, content, active, req.params.lessonId]);
+    if (!result.rows[0]) return res.status(404).json({ error: "Aula não encontrada." });
+    return res.json({ lesson: result.rows[0] });
+  } catch (error) { return next(error); }
+});
+
+router.post("/content/challenges", async (req, res, next) => {
+  try {
+    const lessonId = contentText(req.body?.lessonId); const name = contentText(req.body?.name); const statement = contentText(req.body?.statement) || null; const difficulty = ["beginner", "intermediate", "advanced"].includes(req.body?.difficulty) ? req.body.difficulty : "beginner";
+    if (!lessonId || !name) return res.status(400).json({ error: "Aula e nome do desafio são obrigatórios." });
+    const result = await pool.query("INSERT INTO studycode_challenges (lesson_id, name, statement, difficulty) VALUES ($1, $2, $3, $4) RETURNING id, lesson_id, name, statement, difficulty, active", [lessonId, name, statement, difficulty]);
+    return res.status(201).json({ challenge: result.rows[0] });
+  } catch (error) { return next(error); }
+});
+
+router.patch("/content/challenges/:challengeId", async (req, res, next) => {
+  try {
+    const name = contentText(req.body?.name); const statement = contentText(req.body?.statement) || null; const difficulty = ["beginner", "intermediate", "advanced"].includes(req.body?.difficulty) ? req.body.difficulty : "beginner"; const active = typeof req.body?.active === "boolean" ? req.body.active : null;
+    if (!name) return res.status(400).json({ error: "Nome do desafio é obrigatório." });
+    const result = await pool.query("UPDATE studycode_challenges SET name = $1, statement = $2, difficulty = $3, active = COALESCE($4, active) WHERE id = $5 RETURNING id, lesson_id, name, statement, difficulty, active", [name, statement, difficulty, active, req.params.challengeId]);
+    if (!result.rows[0]) return res.status(404).json({ error: "Desafio não encontrado." });
+    return res.json({ challenge: result.rows[0] });
   } catch (error) { return next(error); }
 });
 

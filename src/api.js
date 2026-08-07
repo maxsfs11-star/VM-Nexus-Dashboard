@@ -105,7 +105,15 @@ export function excluirProduto(token, productId) {
 export function listarStudyCodeAlunos(token) { return request("/api/studycode/admin/students", { token }); }
 export function detalharStudyCodeAluno(token, studentId) { return request(`/api/studycode/admin/students/${studentId}`, { token }); }
 export function listarStudyCodeConteudo(token) { return request("/api/studycode/admin/content", { token }); }
+export function detalharStudyCodeConteudo(token, trackId) { return request(`/api/studycode/admin/content/${trackId}`, { token }); }
+export function criarStudyCodeTrilha(token, payload) { return request("/api/studycode/admin/content/tracks", { method: "POST", token, body: JSON.stringify(payload) }); }
 export function atualizarStudyCodeTrilha(token, trackId, payload) { return request(`/api/studycode/admin/content/tracks/${trackId}`, { method: "PATCH", token, body: JSON.stringify(payload) }); }
+export function criarStudyCodeModulo(token, payload) { return request("/api/studycode/admin/content/modules", { method: "POST", token, body: JSON.stringify(payload) }); }
+export function atualizarStudyCodeModulo(token, moduleId, payload) { return request(`/api/studycode/admin/content/modules/${moduleId}`, { method: "PATCH", token, body: JSON.stringify(payload) }); }
+export function criarStudyCodeAula(token, payload) { return request("/api/studycode/admin/content/lessons", { method: "POST", token, body: JSON.stringify(payload) }); }
+export function atualizarStudyCodeAula(token, lessonId, payload) { return request(`/api/studycode/admin/content/lessons/${lessonId}`, { method: "PATCH", token, body: JSON.stringify(payload) }); }
+export function criarStudyCodeDesafio(token, payload) { return request("/api/studycode/admin/content/challenges", { method: "POST", token, body: JSON.stringify(payload) }); }
+export function atualizarStudyCodeDesafio(token, challengeId, payload) { return request(`/api/studycode/admin/content/challenges/${challengeId}`, { method: "PATCH", token, body: JSON.stringify(payload) }); }
 export function listarStudyCodeIA(token) { return request("/api/studycode/admin/ai", { token }); }
 export function listarStudyCodeAnalytics(token) { return request("/api/studycode/admin/analytics", { token }); }
 export function listarStudyCodeComunidade(token) { return request("/api/studycode/admin/community", { token }); }
