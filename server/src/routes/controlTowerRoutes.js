@@ -70,7 +70,7 @@ router.get("/financial", async (_req, res, next) => {
 router.get("/subscriptions", async (req, res, next) => {
   try {
     const status = String(req.query.status || "all").trim().toLowerCase();
-    const result = await pool.query(`SELECT subscription.id, subscription.status, subscription.started_at, subscription.ends_at, tenant.name AS tenant_name, tenant.slug AS tenant_slug, tenant.billing_status, plan.name AS plan_name, plan.monthly_price, product.name AS product_name, product.slug AS product_slug FROM nexus_subscriptions subscription JOIN nexus_tenants tenant ON tenant.id = subscription.tenant_id JOIN nexus_plans plan ON plan.id = subscription.plan_id JOIN nexus_products product ON product.id = plan.product_id WHERE ($1 = 'all' OR subscription.status = $1) ORDER BY subscription.started_at DESC`, [status]);
+    const result = await pool.query(`SELECT subscription.id, subscription.tenant_id, subscription.status, subscription.started_at, subscription.ends_at, tenant.name AS tenant_name, tenant.slug AS tenant_slug, tenant.billing_status, tenant.due_date, tenant.grace_period_until, plan.id AS plan_id, plan.name AS plan_name, plan.monthly_price, product.name AS product_name, product.slug AS product_slug FROM nexus_subscriptions subscription JOIN nexus_tenants tenant ON tenant.id = subscription.tenant_id JOIN nexus_plans plan ON plan.id = subscription.plan_id JOIN nexus_products product ON product.id = plan.product_id WHERE ($1 = 'all' OR subscription.status = $1) ORDER BY subscription.started_at DESC`, [status]);
     return res.json({ subscriptions: result.rows });
   } catch (error) { return next(error); }
 });
