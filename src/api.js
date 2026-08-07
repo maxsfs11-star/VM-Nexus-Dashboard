@@ -116,3 +116,5 @@ export function listarControlTower(token, params = {}) {
   const query = new URLSearchParams(params).toString();
   return request(`/api/control-tower${query ? `?${query}` : ""}`, { token });
 }
+export function listarFinanceiro(token) { return request("/api/control-tower/financial", { token }); }
+export function listarAssinaturas(token, status = "all") { return request(`/api/control-tower/subscriptions?status=${encodeURIComponent(status)}`, { token }); }
