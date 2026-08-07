@@ -10,6 +10,7 @@ import productRoutes from "./routes/productRoutes.js";
 import studycodeAuthRoutes from "./routes/studycodeAuthRoutes.js";
 import studycodeCatalogRoutes from "./routes/studycodeCatalogRoutes.js";
 import studycodeAdminRoutes from "./routes/studycodeAdminRoutes.js";
+import controlTowerRoutes from "./routes/controlTowerRoutes.js";
 
 export const app = express();
 app.use(cors({ origin: env.corsOrigin }));
@@ -19,6 +20,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/studycode/auth", studycodeAuthRoutes);
 app.use("/api/studycode/catalog", studycodeCatalogRoutes);
 app.use("/api/studycode/admin", studycodeAdminRoutes);
+app.use("/api/control-tower", controlTowerRoutes);
 app.use("/api/integration", integrationRoutes);
 app.use("/api/tenants", tenantRoutes);
 app.use("/api/plans", planRoutes);

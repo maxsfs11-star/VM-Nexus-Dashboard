@@ -112,3 +112,7 @@ export function listarStudyCodeComunidade(token) { return request("/api/studycod
 export function moderarStudyCodePost(token, postId, payload) { return request(`/api/studycode/admin/community/posts/${postId}`, { method: "PATCH", token, body: JSON.stringify(payload) }); }
 export function atualizarStudyCodeFeedback(token, feedbackId, status) { return request(`/api/studycode/admin/community/feedback/${feedbackId}`, { method: "PATCH", token, body: JSON.stringify({ status }) }); }
 export function listarStudyCodeEconomia(token) { return request("/api/studycode/admin/economy", { token }); }
+export function listarControlTower(token, params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return request(`/api/control-tower${query ? `?${query}` : ""}`, { token });
+}
