@@ -4,7 +4,7 @@ import StudyCodeContentEditor from "./StudyCodeContentEditor";
 import StudyCodeAiManager from "./StudyCodeAiManager";
 import StudyCodeCommunityManager from "./StudyCodeCommunityManager";
 import ExecutiveAnalyticsView from "./ExecutiveAnalyticsView";
-import AuditLogView from "./AuditLogView";
+import AuditLogView from "./AuditLogViewProfessional";
 import {
   alterarStatusPlano, alterarStatusTenant, alterarStatusUnidade, atualizarPlano,
   atualizarProduto, atualizarTenant, criarPlano, criarProduto,
