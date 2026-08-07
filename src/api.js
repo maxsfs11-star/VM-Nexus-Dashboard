@@ -118,3 +118,5 @@ export function listarControlTower(token, params = {}) {
 }
 export function listarFinanceiro(token) { return request("/api/control-tower/financial", { token }); }
 export function listarAssinaturas(token, status = "all") { return request(`/api/control-tower/subscriptions?status=${encodeURIComponent(status)}`, { token }); }
+export function listarAdministradores(token) { return request("/api/admin-users", { token }); }
+export function atualizarAdministrador(token, adminId, payload) { return request(`/api/admin-users/${adminId}`, { method: "PATCH", token, body: JSON.stringify(payload) }); }
