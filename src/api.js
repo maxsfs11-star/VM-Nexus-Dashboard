@@ -101,3 +101,14 @@ export function atualizarProduto(token, productId, payload) {
 export function excluirProduto(token, productId) {
   return request(`/api/products/${productId}`, { method: "DELETE", token });
 }
+
+export function listarStudyCodeAlunos(token) { return request("/api/studycode/admin/students", { token }); }
+export function detalharStudyCodeAluno(token, studentId) { return request(`/api/studycode/admin/students/${studentId}`, { token }); }
+export function listarStudyCodeConteudo(token) { return request("/api/studycode/admin/content", { token }); }
+export function atualizarStudyCodeTrilha(token, trackId, payload) { return request(`/api/studycode/admin/content/tracks/${trackId}`, { method: "PATCH", token, body: JSON.stringify(payload) }); }
+export function listarStudyCodeIA(token) { return request("/api/studycode/admin/ai", { token }); }
+export function listarStudyCodeAnalytics(token) { return request("/api/studycode/admin/analytics", { token }); }
+export function listarStudyCodeComunidade(token) { return request("/api/studycode/admin/community", { token }); }
+export function moderarStudyCodePost(token, postId, payload) { return request(`/api/studycode/admin/community/posts/${postId}`, { method: "PATCH", token, body: JSON.stringify(payload) }); }
+export function atualizarStudyCodeFeedback(token, feedbackId, status) { return request(`/api/studycode/admin/community/feedback/${feedbackId}`, { method: "PATCH", token, body: JSON.stringify({ status }) }); }
+export function listarStudyCodeEconomia(token) { return request("/api/studycode/admin/economy", { token }); }
