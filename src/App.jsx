@@ -1,226 +1,116 @@
-import { useEffect, useState } from "react";
-import "./plans.css";
-import "./plans-layout.css";
+import { useEffect, useMemo, useState } from "react";
+import "./workspace.css";
 import {
-  alterarStatusTenant,
-  alterarStatusUnidade,
-  atualizarTenant,
-  atualizarCobrancaTenant,
-  atualizarUnidade,
-  criarTenant,
-  criarUnidade,
-  excluirTenant,
-  excluirUnidade,
-  listarPlanos,
-  criarPlano,
-  atualizarPlano,
-  alterarStatusPlano,
-  atribuirPlanoTenant,
-  listarTenants,
-  listarUnidades,
-  loginAdmin,
-  listarProdutos,
-  criarProduto,
-  atualizarProduto,
-  excluirProduto,
+  alterarStatusPlano, alterarStatusTenant, alterarStatusUnidade, atualizarPlano,
+  atualizarProduto, atualizarTenant, criarPlano, criarProduto,
+  criarTenant, criarUnidade, excluirProduto, excluirTenant, excluirUnidade,
+  listarPlanos, listarProdutos, listarTenants, listarUnidades, loginAdmin,
 } from "./api";
 
-const menu = [
-  ["visao", "Visão geral"],
-  ["clientes", "Clientes e tenants"],
-  ["produtos", "Produtos VM Nexus"],
-  ["planos", "Planos e assinaturas"],
-  ["suporte", "Suporte"],
-  ["financeiro", "Financeiro"],
-  ["auditoria", "Auditoria"],
-];
-
-const PLATFORM_LABELS = { web: "Web", desktop: "Desktop", android: "Android", ios: "iOS" };
+const menu = [["visao", "Visão geral"], ["projetos", "Projetos"], ["tenants", "Tenants Tauri"]];
+const TECHNOLOGIES = {
+  react: { label: "Site ou aplicativo web", tool: "React", type: "web_app", platforms: ["web"] },
+  android_studio: { label: "Aplicativo Android", tool: "Android Studio", type: "mobile_app", platforms: ["android"] },
+  tauri: { label: "Sistema desktop", tool: "Tauri", type: "system", platforms: ["desktop"] },
+  other: { label: "Outro projeto", tool: "Outra tecnologia", type: "service", platforms: ["web"] },
+};
 const STATUS_LABELS = { development: "Em desenvolvimento", available: "Disponível", planned: "Planejado", archived: "Arquivado" };
-const TYPE_LABELS = { system: "Sistema", mobile_app: "Aplicativo móvel", web_app: "Aplicativo web", service: "Serviço" };
+const PLATFORM_LABELS = { web: "Web", desktop: "Desktop", android: "Android", ios: "iOS" };
 
-function formatDate(value) {
-  if (!value) return "Não definido";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "Não definido" : date.toLocaleDateString("pt-BR");
+function readFeatures(value) { if (value && typeof value === "object") return value; try { return JSON.parse(value || "{}"); } catch { return {}; } }
+function money(value) { return Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
+function inferredTechnology(project) {
+  if (project.technology && TECHNOLOGIES[project.technology]) return project.technology;
+  if (project.tenant_enabled || project.platforms?.includes("desktop")) return "tauri";
+  if (project.platforms?.includes("android") || project.platforms?.includes("ios")) return "android_studio";
+  return "react";
 }
-
-function ProductOptions({ products }) {
-  return products.filter((product) => product.status !== "archived").map((product) => (
-    <option key={product.id} value={product.slug}>{product.name}</option>
-  ));
-}
-function readPlanFeatures(value) {
-  if (value && typeof value === "object") return value;
-  try { return JSON.parse(value || "{}"); } catch { return {}; }
-}
+function projectMeta(project) { return TECHNOLOGIES[inferredTechnology(project)] || TECHNOLOGIES.other; }
+function isTenantProject(project) { return inferredTechnology(project) === "tauri" && Boolean(project.tenant_enabled); }
 
 function Login({ onLogin }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [erro, setErro] = useState("");
-  const [carregando, setCarregando] = useState(false);
-
-  async function submit(event) {
-    event.preventDefault();
-    setErro("");
-    setCarregando(true);
-    try { onLogin(await loginAdmin(email, password)); } catch (error) { setErro(error.message); } finally { setCarregando(false); }
-  }
-
-  return <main className="login-shell"><section className="login-card"><div className="login-brand"><span className="brand-mark">VM</span><div><strong>VM Nexus</strong><small>Central administrativa</small></div></div><span className="eyebrow">ACESSO PRIVADO</span><h1>Bem-vindo de volta.</h1><p>Entre com o administrador da VM Nexus Digital para continuar.</p><form onSubmit={submit}><label>E-mail<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="admin@vmnexus.com" required /></label><label>Senha<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Sua senha" required /></label>{erro && <div className="login-error">{erro}</div>}<button type="submit" disabled={carregando}>{carregando ? "Entrando..." : "Entrar na central"}</button></form><small className="login-note">Acesso exclusivo da VM Nexus Digital.</small></section></main>;
+  const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [error, setError] = useState(""); const [loading, setLoading] = useState(false);
+  async function submit(event) { event.preventDefault(); setLoading(true); setError(""); try { onLogin(await loginAdmin(email, password)); } catch (err) { setError(err.message); } finally { setLoading(false); } }
+  return <main className="login-shell"><section className="login-card"><div className="login-brand"><span className="brand-mark">VM</span><div><strong>VM Nexus</strong><small>Central administrativa</small></div></div><span className="eyebrow">ACESSO PRIVADO</span><h1>Projetos bem organizados.</h1><p>Acesse a central interna da VM Nexus Digital.</p><form onSubmit={submit}><label>E-mail<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label><label>Senha<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>{error && <div className="login-error">{error}</div>}<button disabled={loading}>{loading ? "Entrando..." : "Entrar"}</button></form></section></main>;
 }
 
-function TenantForm({ cliente, products, onSubmit, onClose }) {
-  return <form className="tenant-inline-form" onSubmit={async (event) => { if (await onSubmit(event, cliente)) onClose(); }}><label>Nome<input name="name" defaultValue={cliente.name} required /></label><label>Identificador<input name="slug" defaultValue={cliente.slug} pattern="[a-z0-9-]+" required /></label><label>Produto<select name="productKey" defaultValue={cliente.product_key || products[0]?.slug}><ProductOptions products={products} /></select></label><button type="submit">Salvar alterações</button></form>;
-}
-
-function BillingForm({ cliente, onSubmit, onClose }) {
-  return <form className="tenant-inline-form billing-form" onSubmit={(event) => { onSubmit(event, cliente); onClose(); }}>
-    <strong>Regras de cobrança</strong>
-    <label>Vencimento<input type="date" name="dueDate" defaultValue={cliente.due_date || ""} /></label>
-    <label>Fim da tolerância<input type="date" name="gracePeriodUntil" defaultValue={cliente.grace_period_until || ""} /></label>
-    <label>Status financeiro<select name="billingStatus" defaultValue={cliente.billing_status || "current"}><option value="current">Em dia</option><option value="past_due">Em atraso</option><option value="paid">Pago</option><option value="cancelled">Cancelado</option></select></label>
-    <button type="submit">Salvar cobrança</button>
+function ProjectForm({ project, onSave, onCancel, saving, error }) {
+  const editing = Boolean(project?.id); const [technology, setTechnology] = useState(project ? inferredTechnology(project) : "react");
+  return <form className="project-editor" onSubmit={(event) => onSave(event, project, technology)}>
+    <div className="editor-heading"><div><span className="eyebrow">{editing ? "CONFIGURAÇÕES" : "NOVO PROJETO"}</span><h2>{editing ? `Editar ${project.name}` : "Comece um projeto"}</h2><p>Escolha a tecnologia. A plataforma é definida automaticamente para manter o portfólio simples.</p></div>{onCancel && <button type="button" className="button-quiet" onClick={onCancel}>Cancelar</button>}</div>
+    <div className="technology-grid">{Object.entries(TECHNOLOGIES).filter(([key]) => key !== "other").map(([key, item]) => <label key={key} className={`technology-option ${technology === key ? "selected" : ""}`}><input type="radio" name="technology" value={key} checked={technology === key} onChange={() => setTechnology(key)} /><strong>{item.label}</strong><small>{item.tool} · {item.platforms.map((platform) => PLATFORM_LABELS[platform]).join(", ")}</small></label>)}</div>
+    <div className="editor-grid"><label>Nome do projeto<input name="name" defaultValue={project?.name || ""} placeholder="Ex.: MesaManda" required /></label>{!editing && <label>Identificador<input name="slug" defaultValue={project?.slug || ""} placeholder="mesa-manda" pattern="[a-z0-9-]+" required /></label>}<label>Categoria<input name="category" defaultValue={project?.category || ""} placeholder="Ex.: Gestão de restaurantes" /></label><label>Status<select name="status" defaultValue={project?.status || "planned"}>{Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div>
+    <label>Descrição<textarea name="description" defaultValue={project?.description || ""} rows="4" placeholder="Explique rapidamente o que este projeto entrega." /></label>
+    {technology === "tauri" && <label className="tenant-toggle"><input name="tenantEnabled" type="checkbox" defaultChecked={Boolean(project?.tenant_enabled)} /><span><strong>Este é um sistema multi-tenant</strong><small>Ativa a área de Empresas e Unidades somente para este sistema Tauri.</small></span></label>}
+    {error && <div className="login-error">{error}</div>}<button className="button-primary" disabled={saving}>{saving ? "Salvando..." : editing ? "Salvar projeto" : "Criar projeto"}</button>
   </form>;
 }
 
-function TenantsView({ clientes, products, onNovoCliente, onSelecionar, onEditar, onAlternar, onExcluir, onAtualizarCobranca = onEditar }) {
-  const [opcoesId, setOpcoesId] = useState(null);
-  const [editandoId, setEditandoId] = useState(null);
-  const [cobrancaId, setCobrancaId] = useState(null);
-  return <section className="tenants-view">
-    <div className="view-heading"><div><span className="eyebrow">ADMINISTRAÇÃO DE CLIENTES</span><h2>Clientes e tenants</h2><p>Cada tenant representa uma empresa isolada dentro do ecossistema VM Nexus.</p></div><button onClick={onNovoCliente}>Novo cliente</button></div>
-    <div className="tenant-summary"><article><small>Total de tenants</small><strong>{clientes.length}</strong></article><article><small>Tenants ativos</small><strong>{clientes.filter((cliente) => cliente.status !== "suspended").length}</strong></article><article><small>Produtos conectados</small><strong>{new Set(clientes.map((cliente) => cliente.product_key || cliente.produto)).size}</strong></article></div>
-    <div className="tenant-table"><div className="tenant-table-head"><span>Empresa</span><span>Produto</span><span>Unidades</span><span>Status e acesso</span></div>
-      {clientes.map((cliente) => <div className="tenant-row" key={cliente.id || cliente.nome}>
-        <div><span className="client-mark">{(cliente.name || cliente.nome).slice(0, 2).toUpperCase()}</span><span><strong>{cliente.name || cliente.nome}</strong><small>{cliente.slug || "ambiente-local"}</small></span></div>
-        <div className="tenant-product"><strong>{cliente.product_key || cliente.produto || "—"}</strong>{cliente.plan_name && <small>Plano: {cliente.plan_name}</small>}</div><span>{cliente.units ?? cliente.unidades ?? 0}</span>
-        <div className="tenant-actions"><div className="tenant-status"><div><em className={cliente.status === "suspended" ? "unit-inactive" : "unit-active"}>{cliente.status || "Configuração"}</em><em className={`access-badge ${cliente.access_level || "full"}`}>{cliente.access_level === "blocked" ? "Acesso bloqueado" : cliente.access_level === "limited" ? "Acesso limitado" : "Acesso normal"}</em></div><small>Vencimento: {formatDate(cliente.due_date)}{cliente.grace_period_until ? ` · tolerância até ${formatDate(cliente.grace_period_until)}` : ""}</small></div>{cliente.id && <><button onClick={() => onSelecionar(cliente)}>Unidades</button><button className="tenant-options-button" onClick={() => setOpcoesId(opcoesId === cliente.id ? null : cliente.id)}>Opções</button></>}</div>
-        {opcoesId === cliente.id && <div className="tenant-options"><button onClick={() => setEditandoId(editandoId === cliente.id ? null : cliente.id)}>Editar empresa</button><button onClick={() => setCobrancaId(cobrancaId === cliente.id ? null : cliente.id)}>Cobrança e acesso</button><button onClick={() => onAlternar(cliente)}>{cliente.status === "suspended" ? "Ativar empresa" : "Desativar empresa"}</button><button className="unit-delete" onClick={() => onExcluir(cliente)}>Excluir empresa</button></div>}
-        {editandoId === cliente.id && <TenantForm cliente={cliente} products={products} onSubmit={onEditar} onClose={() => setEditandoId(null)} />}
-        {cobrancaId === cliente.id && <BillingForm cliente={cliente} onSubmit={onAtualizarCobranca} onClose={() => setCobrancaId(null)} />}
-      </div>)}
-    </div>{!clientes.length && <div className="empty-state">Nenhum tenant cadastrado ainda.</div>}
-  </section>;
+function ProjectCard({ project, onOpen, onEdit, onDelete }) {
+  const meta = projectMeta(project);
+  return <article className="project-card"><div className="project-card-top"><span className="project-symbol">{project.name.slice(0, 2).toUpperCase()}</span><div><span className="eyebrow">{meta.tool}</span><h3>{project.name}</h3></div><span className={`status-pill ${project.status}`}>{STATUS_LABELS[project.status] || project.status}</span></div><p>{project.description || "Sem descrição cadastrada."}</p><div className="tag-row"><span>{meta.label}</span>{project.platforms?.map((item) => <span key={item}>{PLATFORM_LABELS[item] || item}</span>)}{isTenantProject(project) && <span className="tenant-tag">Multi-tenant</span>}</div><div className="project-card-footer"><small>{project.plans || 0} plano(s) · {isTenantProject(project) ? `${project.tenants || 0} empresa(s)` : "sem tenants"}</small><div><button className="button-quiet" onClick={() => onEdit(project)}>Editar</button><button className="button-primary" onClick={() => onOpen(project)}>Abrir</button></div></div>{project.status === "archived" && <button className="text-danger" onClick={() => onDelete(project)}>Excluir projeto arquivado</button>}</article>;
 }
 
-function UnidadesView({ tenant, unidades, onCriar, onAtualizar, onAlternar, onExcluir, erro, salvando }) {
-  const [editandoId, setEditandoId] = useState(null);
-  return <section className="units-view"><div className="view-heading"><div><span className="eyebrow">UNIDADES DO TENANT</span><h2>{tenant.name}</h2><p>Locais vinculados a este cliente e isolados pelo tenant.</p></div></div><div className="unit-content"><div className="unit-list">{unidades.map((unidade) => <article className="unit-card" key={unidade.id}><span className="client-mark">{unidade.name.slice(0, 2).toUpperCase()}</span><div><strong>{unidade.name}</strong><small>{unidade.slug} · {unidade.city || "Cidade não informada"}{unidade.state ? `/${unidade.state}` : ""}</small></div><em className={unidade.active ? "unit-active" : "unit-inactive"}>{unidade.active ? "Ativa" : "Desativada"}</em><div className="unit-card-actions"><button className="unit-edit" onClick={() => setEditandoId(editandoId === unidade.id ? null : unidade.id)}>{editandoId === unidade.id ? "Fechar" : "Editar"}</button><button className="unit-toggle" onClick={() => onAlternar(unidade)}>{unidade.active ? "Desativar" : "Ativar"}</button><button className="unit-delete" onClick={() => onExcluir(unidade)}>Excluir</button></div>{editandoId === unidade.id && <form className="unit-inline-form" onSubmit={(event) => { onAtualizar(event, unidade); setEditandoId(null); }}><label>Nome<input name="name" defaultValue={unidade.name} required /></label><label>Identificador<input name="slug" defaultValue={unidade.slug} pattern="[a-z0-9-]+" required /></label><div className="unit-form-grid"><label>Cidade<input name="city" defaultValue={unidade.city || ""} /></label><label>UF<input name="state" defaultValue={unidade.state || ""} maxLength="2" /></label></div><button type="submit">Salvar alterações</button></form>}</article>)}{!unidades.length && <div className="empty-state">Nenhuma unidade cadastrada para este tenant.</div>}</div><form className="unit-form" onSubmit={onCriar}><strong>Adicionar unidade</strong><label>Nome<input name="name" placeholder="Ex.: Matriz" required /></label><label>Identificador<input name="slug" placeholder="matriz" pattern="[a-z0-9-]+" required /></label><div className="unit-form-grid"><label>Cidade<input name="city" placeholder="Santa Fé do Sul" /></label><label>UF<input name="state" placeholder="SP" maxLength="2" /></label></div>{erro && <div className="login-error">{erro}</div>}<button type="submit" disabled={salvando}>{salvando ? "Salvando..." : "Adicionar unidade"}</button></form></div></section>;
+function ProjectsView({ projects, onOpen, onEdit, onDelete }) {
+  return <section className="page-section"><div className="page-heading"><div><span className="eyebrow">PORTFÓLIO VM NEXUS</span><h1>Todos os projetos</h1><p>Sites React, aplicativos Android e sistemas desktop Tauri em um único lugar.</p></div><button className="button-primary" onClick={() => onEdit(null)}>Novo projeto</button></div><div className="project-grid">{projects.map((project) => <ProjectCard key={project.id} project={project} onOpen={onOpen} onEdit={onEdit} onDelete={onDelete} />)}</div>{!projects.length && <div className="empty-card"><h3>Seu portfólio começa aqui.</h3><p>Cadastre o primeiro site, aplicativo ou sistema.</p></div>}</section>;
 }
 
-function ProductForm({ product, onSubmit, onClose, saving, error }) {
-  const editing = Boolean(product?.id);
-  return <div className="modal-backdrop"><form className="tenant-modal product-form" onSubmit={(event) => onSubmit(event, product)}>
-    <div className="view-heading"><div><span className="eyebrow">{editing ? "EDITAR PROJETO" : "NOVO PROJETO"}</span><h2>{editing ? product.name : "Cadastrar projeto"}</h2></div><button type="button" onClick={onClose}>Fechar</button></div>
-    <label>Nome<input name="name" defaultValue={product?.name || ""} required /></label>
-    {!editing && <label>Identificador<input name="slug" defaultValue={product?.slug || ""} placeholder="meu-projeto" pattern="[a-z0-9-]+" required /></label>}
-    <label>Categoria<input name="category" defaultValue={product?.category || ""} placeholder="Ex.: Gestão, Food service" /></label>
-    <label>Descrição<textarea name="description" defaultValue={product?.description || ""} rows="3" /></label>
-    <div className="product-form-grid"><label>Tipo<select name="productType" defaultValue={product?.product_type || "system"}>{Object.entries(TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Status<select name="status" defaultValue={product?.status || "planned"}>{Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div>
-    <fieldset><legend>Plataformas</legend><div className="platform-options">{Object.entries(PLATFORM_LABELS).map(([value, label]) => <label key={value}><input type="checkbox" name="platforms" value={value} defaultChecked={(product?.platforms || ["web"]).includes(value)} />{label}</label>)}</div></fieldset>
-    {error && <div className="login-error">{error}</div>}
-    <button className="tenant-submit" type="submit" disabled={saving}>{saving ? "Salvando..." : editing ? "Salvar alterações" : "Cadastrar projeto"}</button>
-  </form></div>;
+function PlanForm({ plan, onSave, onCancel, saving }) {
+  const features = readFeatures(plan?.features); const benefits = Array.isArray(features.benefits) ? features.benefits.join(", ") : "";
+  return <form className="plan-editor" onSubmit={(event) => onSave(event, plan)}><div className="editor-heading"><div><span className="eyebrow">{plan ? "EDITAR PLANO" : "NOVO PLANO"}</span><h2>{plan ? plan.name : "Novo plano"}</h2><p>Defina preço, moedas incluídas e benefícios deste projeto.</p></div><button className="button-quiet" type="button" onClick={onCancel}>Fechar</button></div><div className="editor-grid"><label>Nome<input name="name" defaultValue={plan?.name || ""} placeholder="Ex.: Pro" required /></label><label>Mensalidade (R$)<input name="monthlyPrice" type="number" min="0" step="0.01" defaultValue={plan?.monthly_price || 0} required /></label><label>Moedas incluídas<input name="coins" type="number" min="0" defaultValue={features.coins ?? 0} /><small>Use 0 caso o projeto não trabalhe com moedas.</small></label><label>Ordem de exibição<input name="displayOrder" type="number" min="0" defaultValue={plan?.display_order || 0} /></label></div><label>Descrição<textarea name="description" rows="3" defaultValue={plan?.description || ""} placeholder="Para quem é este plano?" /></label><label>Benefícios<input name="benefits" defaultValue={benefits} placeholder="Ex.: relatórios, suporte prioritário, exportação" /><small>Separe os benefícios por vírgula.</small></label><button className="button-primary" disabled={saving}>{saving ? "Salvando..." : "Salvar plano"}</button></form>;
 }
 
-function ProductsView({ products, onSave, onDelete, saving, error }) {
+function MonetizationView({ project, plans, onSave, onToggle, saving }) {
   const [editing, setEditing] = useState(undefined);
-  const active = products.filter((product) => product.status !== "archived");
-  return <section className="tenants-view products-view">
-    <div className="view-heading"><div><span className="eyebrow">PORTFÓLIO VM NEXUS</span><h2>Projetos, sistemas e aplicativos</h2><p>Administre cada produto e as plataformas Web, Desktop, Android e iOS.</p></div><button onClick={() => setEditing(null)}>Novo projeto</button></div>
-    <div className="tenant-summary"><article><small>Total de projetos</small><strong>{products.length}</strong></article><article><small>Projetos ativos</small><strong>{active.length}</strong></article><article><small>Apps móveis</small><strong>{products.filter((product) => product.platforms?.some((platform) => platform === "android" || platform === "ios")).length}</strong></article></div>
-    <div className="product-catalog">{products.map((product) => <article className="product-catalog-card" key={product.id}><div className="product-card-heading"><span className="product-icon">{product.name.slice(0, 2).toUpperCase()}</span><div><strong>{product.name}</strong><small>{product.category || TYPE_LABELS[product.product_type]}</small></div><em className={`product-status ${product.status}`}>{STATUS_LABELS[product.status] || product.status}</em></div><p>{product.description || "Sem descrição cadastrada."}</p><div className="platform-tags">{product.platforms?.map((platform) => <span key={platform}>{PLATFORM_LABELS[platform] || platform}</span>)}</div><dl><div><dt>Tenants</dt><dd>{product.tenants || 0}</dd></div><div><dt>Planos</dt><dd>{product.plans || 0}</dd></div><div><dt>Identificador</dt><dd>{product.slug}</dd></div></dl><div className="plan-actions"><button onClick={() => setEditing(product)}>Editar</button><button className="danger-button" onClick={() => onDelete(product)}>Excluir</button></div></article>)}</div>
-    {!products.length && <div className="empty-state">Nenhum projeto cadastrado.</div>}
-    {editing !== undefined && <ProductForm product={editing} saving={saving} error={error} onClose={() => setEditing(undefined)} onSubmit={async (event, product) => { if (await onSave(event, product)) setEditing(undefined); }} />}
-  </section>;
+  return <section className="workspace-panel"><div className="section-heading"><div><span className="eyebrow">MONETIZAÇÃO</span><h2>Planos e moedas</h2><p>Os planos pertencem apenas a {project.name}. Não há assinaturas por cliente nesta área.</p></div><button className="button-primary" onClick={() => setEditing(null)}>Novo plano</button></div>{editing !== undefined && <PlanForm plan={editing} saving={saving} onCancel={() => setEditing(undefined)} onSave={async (event, plan) => { if (await onSave(event, plan)) setEditing(undefined); }} />}<div className="plan-grid">{plans.map((plan) => { const features = readFeatures(plan.features); return <article className="monetization-card" key={plan.id}><div><span className="eyebrow">{plan.active ? "ATIVO" : "PAUSADO"}</span><h3>{plan.name}</h3><p>{plan.description || "Sem descrição cadastrada."}</p></div><strong>{money(plan.monthly_price)}<small>/mês</small></strong><div className="coin-line">◈ {features.coins ?? 0} moedas incluídas</div><ul>{(features.benefits || []).map((benefit) => <li key={benefit}>{benefit}</li>)}</ul><div className="action-row"><button className="button-quiet" onClick={() => setEditing(plan)}>Editar</button><button className="button-quiet" onClick={() => onToggle(plan)}>{plan.active ? "Pausar" : "Ativar"}</button></div></article>; })}</div>{!plans.length && editing === undefined && <div className="empty-card"><h3>Nenhum plano criado.</h3><p>Crie planos quando este projeto tiver uma versão paga ou moedas.</p></div>}</section>;
 }
 
-function PlanosView({ planos, clientes, products, productKey, onProductChange, onNovo, onEditar, onAlternar, onAtribuir, salvando }) {
-  const [editando, setEditando] = useState(null);
-  const [tenantId, setTenantId] = useState("");
-  const [planoId, setPlanoId] = useState("");
-  const [status, setStatus] = useState("active");
-  const [erroAtivacao, setErroAtivacao] = useState("");
-  const [sucessoAtivacao, setSucessoAtivacao] = useState("");
-  const ativos = planos.filter((plano) => plano.active);
-  const clientesProduto = clientes.filter((cliente) => cliente.product_key === productKey);
-  function changeProduct(value) {
-    setTenantId("");
-    setPlanoId("");
-    setErroAtivacao("");
-    setSucessoAtivacao("");
-    onProductChange(value);
-  }
-  async function ativarPlano() {
-    setErroAtivacao("");
-    setSucessoAtivacao("");
-    try {
-      await onAtribuir({ tenantId, planId: planoId, status });
-      const cliente = clientes.find((item) => item.id === tenantId);
-      const plano = planos.find((item) => item.id === planoId);
-      setSucessoAtivacao(`${plano?.name || "Plano"} ativado para ${cliente?.name || "o cliente"}.`);
-    } catch (error) {
-      setErroAtivacao(error.message || "Não foi possível ativar o plano.");
-    }
-  }
-  return <section className="tenants-view plans-view">
-    <div className="view-heading"><div><span className="eyebrow">CATÁLOGO COMERCIAL</span><h2>Planos e assinaturas</h2><p>Defina os planos de cada projeto e ative a contratação por tenant.</p></div><div className="plan-heading-actions"><select value={productKey} onChange={(event) => changeProduct(event.target.value)}>{products.map((product) => <option key={product.id} value={product.slug}>{product.name}</option>)}</select><button onClick={onNovo} disabled={!productKey}>Novo plano</button></div></div>
-    <details className="panel subscription-panel plan-assignment-collapsed"><summary><span><span className="eyebrow">OPCIONAL</span><strong>Assinaturas por cliente</strong><small>Use depois de criar os planos para liberar um plano para um tenant.</small></span><b>›</b></summary><div className="plan-assignment-body">{erroAtivacao && <div className="login-error">{erroAtivacao}</div>}{sucessoAtivacao && <div className="success-message">{sucessoAtivacao}</div>}<div className="plan-assignment"><label>Cliente<select value={tenantId} onChange={(event) => setTenantId(event.target.value)}><option value="">Selecione um tenant</option>{clientesProduto.map((cliente) => <option key={cliente.id} value={cliente.id}>{cliente.name} ({cliente.slug})</option>)}</select></label><label>Plano<select value={planoId} onChange={(event) => setPlanoId(event.target.value)}><option value="">Selecione um plano</option>{ativos.map((plano) => <option key={plano.id} value={plano.id}>{plano.name} — R$ {Number(plano.monthly_price || 0).toFixed(2).replace('.', ',')}</option>)}</select></label><label>Status<select value={status} onChange={(event) => setStatus(event.target.value)}><option value="active">Ativo</option><option value="trial">Período de teste</option><option value="paused">Pausado</option><option value="cancelled">Cancelado</option></select></label><button type="button" disabled={!tenantId || !planoId || salvando} onClick={ativarPlano}>{salvando ? "Salvando..." : "Ativar assinatura"}</button></div></div></details>
-    <div className="tenant-summary"><article><small>Planos cadastrados</small><strong>{planos.length}</strong></article><article><small>Planos ativos</small><strong>{ativos.length}</strong></article><article><small>Tenants com assinatura</small><strong>{clientesProduto.filter((cliente) => cliente.plan_id).length}</strong></article></div>
-    <div className="plans-grid">{planos.map((plano) => { const features = readPlanFeatures(plano.features); return <article className="plan-card" key={plano.id}><div><span className="eyebrow">{plano.slug?.toUpperCase()}</span><h3>{plano.name}</h3><p>{plano.description || "Sem descrição cadastrada."}</p></div><strong className="plan-price">R$ {Number(plano.monthly_price || 0).toFixed(2).replace('.', ',')}<small>/mês</small></strong><small>IA: {features.aiQuestionsPerDay ?? 0}/dia · {features.courses?.length || 0} trilha(s)</small><small>{features.projects ? "Projetos liberados" : "Projetos limitados"} · {features.certificates ? "Certificados liberados" : "Sem certificados"}</small><div className="plan-actions"><button onClick={() => setEditando(plano)}>Editar recursos</button><button onClick={() => onAlternar(plano)}>{plano.active ? "Desativar" : "Ativar"}</button></div></article>; })}</div>
-    {editando && <form className="modal-backdrop" onSubmit={(event) => { event.preventDefault(); onEditar(editando.id, new FormData(event.currentTarget)); setEditando(null); }}><div className="tenant-modal"><div className="view-heading"><div><span className="eyebrow">RECURSOS DO PLANO</span><h2>{editando.name}</h2></div><button type="button" onClick={() => setEditando(null)}>Fechar</button></div><label>Nome<input name="name" defaultValue={editando.name} required /></label><label>Descrição<input name="description" defaultValue={editando.description || ""} /></label><label>Mensalidade<input name="monthlyPrice" type="number" min="0" step="0.01" defaultValue={editando.monthly_price || 0} /></label>{(() => { const features = readPlanFeatures(editando.features); return <><label>Trilhas liberadas<input name="courses" defaultValue={(features.courses || []).join(", ")} placeholder="html, css, javascript" /></label><label>Perguntas de IA por dia<input name="aiQuestionsPerDay" type="number" min="0" defaultValue={features.aiQuestionsPerDay ?? 0} /></label><label className="checkbox-row"><input name="projects" type="checkbox" defaultChecked={Boolean(features.projects)} /> Liberar projetos práticos</label><label className="checkbox-row"><input name="certificates" type="checkbox" defaultChecked={Boolean(features.certificates)} /> Liberar certificados</label></>; })()}<button className="tenant-submit" type="submit">Salvar recursos</button></div></form>}
-  </section>;
+function TenantWorkspace({ project, tenants, selectedTenant, units, onCreate, onUpdate, onSelect, onUnitCreate, onUnitToggle, onTenantToggle, onTenantDelete, onUnitDelete, saving, error }) {
+  const [formOpen, setFormOpen] = useState(false); const [editing, setEditing] = useState(null);
+  return <section className="workspace-panel"><div className="section-heading"><div><span className="eyebrow">MULTI-TENANT TAURI</span><h2>Empresas e unidades</h2><p>Esta área é exclusiva do sistema {project.name}. Cada empresa tem dados isolados.</p></div><button className="button-primary" onClick={() => setFormOpen(true)}>Nova empresa</button></div>{(formOpen || editing) && <form className="compact-form" onSubmit={async (event) => { const ok = await (editing ? onUpdate(event, editing) : onCreate(event)); if (ok) { setFormOpen(false); setEditing(null); } }}><div className="editor-grid"><label>Nome da empresa<input name="name" defaultValue={editing?.name || ""} required /></label><label>Identificador<input name="slug" defaultValue={editing?.slug || ""} pattern="[a-z0-9-]+" required /></label></div>{error && <div className="login-error">{error}</div>}<div className="action-row"><button className="button-primary" disabled={saving}>{saving ? "Salvando..." : "Salvar empresa"}</button><button className="button-quiet" type="button" onClick={() => { setFormOpen(false); setEditing(null); }}>Cancelar</button></div></form>}<div className="tenant-list">{tenants.map((tenant) => <article key={tenant.id} className={`tenant-item ${selectedTenant?.id === tenant.id ? "selected" : ""}`}><div><span className="project-symbol">{tenant.name.slice(0, 2).toUpperCase()}</span><span><strong>{tenant.name}</strong><small>{tenant.slug} · {tenant.units || 0} unidade(s)</small></span></div><div className="action-row"><button className="button-quiet" onClick={() => onSelect(tenant)}>Unidades</button><button className="button-quiet" onClick={() => setEditing(tenant)}>Editar</button><button className="button-quiet" onClick={() => onTenantToggle(tenant)}>{tenant.status === "suspended" ? "Ativar" : "Pausar"}</button><button className="text-danger" onClick={() => onTenantDelete(tenant)}>Excluir</button></div></article>)}</div>{!tenants.length && <div className="empty-card"><h3>Nenhuma empresa criada.</h3><p>Cadastre uma empresa apenas quando ela precisar de um ambiente isolado no sistema.</p></div>}{selectedTenant && <section className="units-section"><div className="section-heading"><div><span className="eyebrow">UNIDADES</span><h2>{selectedTenant.name}</h2></div></div><div className="units-grid">{units.map((unit) => <article className="unit-card" key={unit.id}><strong>{unit.name}</strong><small>{unit.slug} · {unit.city || "Cidade não informada"}{unit.state ? `/${unit.state}` : ""}</small><div className="action-row"><button className="button-quiet" onClick={() => onUnitToggle(unit)}>{unit.active ? "Desativar" : "Ativar"}</button><button className="text-danger" onClick={() => onUnitDelete(unit)}>Excluir</button></div></article>)}</div><form className="compact-form" onSubmit={onUnitCreate}><h3>Adicionar unidade</h3><div className="editor-grid"><label>Nome<input name="name" required /></label><label>Identificador<input name="slug" pattern="[a-z0-9-]+" required /></label><label>Cidade<input name="city" /></label><label>UF<input name="state" maxLength="2" /></label></div><button className="button-primary" disabled={saving}>{saving ? "Salvando..." : "Adicionar unidade"}</button></form></section>}</section>;
 }
+
+function ProjectWorkspace({ project, plans, tenants, selectedTenant, units, onBack, onProjectSave, onPlansSave, onPlanToggle, onTenant, saving, error }) {
+  const [tab, setTab] = useState("overview"); const meta = projectMeta(project); const hasTenants = isTenantProject(project);
+  const tabs = [["overview", "Resumo"], ["settings", "Configurações"], ["plans", "Monetização"], ...(hasTenants ? [["tenants", "Empresas e unidades"]] : [])];
+  return <section className="project-workspace"><button className="back-link" onClick={onBack}>← Todos os projetos</button><div className="project-workspace-head"><div><span className="eyebrow">{meta.tool.toUpperCase()}</span><h1>{project.name}</h1><p>{project.description || "Sem descrição cadastrada."}</p></div><span className={`status-pill ${project.status}`}>{STATUS_LABELS[project.status]}</span></div><nav className="workspace-tabs">{tabs.map(([id, label]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>{label}</button>)}</nav>{tab === "overview" && <section className="workspace-panel"><div className="overview-grid"><article><small>Tipo</small><strong>{meta.label}</strong><span>{meta.tool}</span></article><article><small>Plataforma</small><strong>{project.platforms?.map((item) => PLATFORM_LABELS[item]).join(", ")}</strong><span>Definida pela tecnologia</span></article><article><small>Monetização</small><strong>{plans.length} plano(s)</strong><span>Preço, moedas e benefícios</span></article>{hasTenants && <article><small>Multi-tenant</small><strong>{project.tenants || 0} empresa(s)</strong><span>Ambientes isolados no Tauri</span></article>}</div><div className="quick-actions"><button className="button-primary" onClick={() => setTab("settings")}>Editar projeto</button><button className="button-quiet" onClick={() => setTab("plans")}>Gerenciar planos</button>{hasTenants && <button className="button-quiet" onClick={() => setTab("tenants")}>Gerenciar empresas</button>}</div></section>}{tab === "settings" && <ProjectForm project={project} onSave={onProjectSave} saving={saving} error={error} />}{tab === "plans" && <MonetizationView project={project} plans={plans} onSave={onPlansSave} onToggle={onPlanToggle} saving={saving} />}{tab === "tenants" && hasTenants && <TenantWorkspace project={project} tenants={tenants} selectedTenant={selectedTenant} units={units} onCreate={onTenant.create} onUpdate={onTenant.update} onSelect={onTenant.select} onUnitCreate={onTenant.createUnit} onUnitToggle={onTenant.toggleUnit} onTenantToggle={onTenant.toggle} onTenantDelete={onTenant.remove} onUnitDelete={onTenant.removeUnit} saving={saving} error={error} />}</section>;
+}
+
+function Overview({ projects, onOpen, onNew }) { const tauri = projects.filter(isTenantProject); return <section className="page-section"><div className="intro-card"><span className="eyebrow">CENTRAL VM NEXUS</span><h1>Um painel para criar e evoluir produtos.</h1><p>Projetos ficam separados por tecnologia. Planos, preço e moedas ficam dentro de cada projeto. Empresas existem somente nos sistemas Tauri multi-tenant.</p><button className="button-primary" onClick={onNew}>Novo projeto</button></div><div className="overview-grid"><article><small>Projetos</small><strong>{projects.length}</strong><span>sites, apps e sistemas</span></article><article><small>React</small><strong>{projects.filter((item) => inferredTechnology(item) === "react").length}</strong><span>web e aplicativos web</span></article><article><small>Android Studio</small><strong>{projects.filter((item) => inferredTechnology(item) === "android_studio").length}</strong><span>aplicativos Android</span></article><article><small>Tauri multi-tenant</small><strong>{tauri.length}</strong><span>com empresas isoladas</span></article></div><section className="recent-projects"><div className="section-heading"><div><span className="eyebrow">CONTINUAR</span><h2>Projetos recentes</h2></div></div><div className="project-grid">{projects.slice(0, 3).map((project) => <ProjectCard key={project.id} project={project} onOpen={onOpen} onEdit={onOpen} onDelete={() => {}} />)}</div></section></section>; }
 
 function App() {
-  const [secao, setSecao] = useState("visao");
-  const [sessao, setSessao] = useState(() => { try { return JSON.parse(localStorage.getItem("vm_nexus_session") || "null"); } catch { return null; } });
-  const [clientes, setClientes] = useState([]);
-  const [tenantSelecionado, setTenantSelecionado] = useState(null);
-  const [unidades, setUnidades] = useState([]);
-  const [formAberto, setFormAberto] = useState(false);
-  const [erro, setErro] = useState("");
-  const [salvando, setSalvando] = useState(false);
-  const [planos, setPlanos] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [planProductKey, setPlanProductKey] = useState("mesamanda");
-
-  useEffect(() => { if (sessao?.token) listarTenants(sessao.token).then(({ tenants }) => setClientes(tenants)).catch((error) => setErro(error.message)); }, [sessao]);
-  useEffect(() => { if (sessao?.token) listarProdutos(sessao.token).then(({ products: items }) => setProducts(items)).catch((error) => setErro(error.message)); }, [sessao]);
-  useEffect(() => { if (sessao?.token && secao === "planos" && planProductKey) listarPlanos(sessao.token, planProductKey).then(({ plans }) => setPlanos(plans)).catch((error) => setErro(error.message)); }, [sessao, secao, planProductKey]);
-  useEffect(() => { if (sessao?.token && tenantSelecionado?.id) listarUnidades(sessao.token, tenantSelecionado.id).then(({ units }) => setUnidades(units)).catch((error) => setErro(error.message)); }, [sessao, tenantSelecionado]);
-  if (!sessao) return <Login onLogin={(data) => { localStorage.setItem("vm_nexus_session", JSON.stringify(data)); setSessao(data); }} />;
-  if (secao === "planos") return <div className="nexus-app"><main><header className="topbar"><div><small>Central VM Nexus</small><strong>Planos e assinaturas</strong></div><div className="operator"><span>MN</span><div><strong>{sessao.admin.name}</strong><small>Administrador geral</small></div><button className="logout-button" onClick={() => setSecao("visao")}>Voltar</button></div></header><div className="workspace">{erro && <div className="login-error workspace-error">{erro}</div>}<PlanosView planos={planos} clientes={clientes} products={products} productKey={planProductKey} onProductChange={setPlanProductKey} onNovo={createPlan} onEditar={editPlan} onAlternar={togglePlan} onAtribuir={assignPlan} salvando={salvando} /></div></main></div>;
-
-  async function refresh() { const { tenants } = await listarTenants(sessao.token); setClientes(tenants); }
-  async function refreshPlans() { const { plans } = await listarPlanos(sessao.token, planProductKey); setPlanos(plans); }
-  async function refreshProducts() { const { products: items } = await listarProdutos(sessao.token); setProducts(items); }
-  async function createPlan() { const name = window.prompt("Nome do plano:", "Free"); if (!name) return; const monthlyPrice = window.prompt("Mensalidade em reais:", name.toLowerCase() === "free" ? "0" : "29.90"); if (monthlyPrice === null) return; const premium = name.toLowerCase().includes("premium"); const features = premium ? { courses: ["html", "css", "javascript", "react", "typescript", "node", "next", "python", "java", "csharp", "cpp"], aiQuestionsPerDay: 50, projects: true, certificates: true } : { courses: ["html", "css", "javascript"], aiQuestionsPerDay: 3, projects: false, certificates: false }; try { await criarPlano(sessao.token, { productKey: planProductKey, name, slug: name, description: `Plano ${name} do StudyCode`, monthlyPrice, features }); await refreshPlans(); } catch (error) { setErro(error.message); } }
-  async function editPlan(planId, form) { const courses = String(form.get("courses") || "").split(",").map((item) => item.trim().toLowerCase()).filter(Boolean); const features = { courses, aiQuestionsPerDay: Number(form.get("aiQuestionsPerDay") || 0), projects: form.get("projects") === "on", certificates: form.get("certificates") === "on" }; try { await atualizarPlano(sessao.token, planId, { name: form.get("name"), description: form.get("description"), monthlyPrice: form.get("monthlyPrice"), features }); await refreshPlans(); } catch (error) { setErro(error.message); } }
-  async function togglePlan(plan) { try { await alterarStatusPlano(sessao.token, plan.id, !plan.active); await refreshPlans(); } catch (error) { setErro(error.message); } }
-  async function assignPlan({ tenantId, planId, status }) { setSalvando(true); try { await atribuirPlanoTenant(sessao.token, tenantId, { planId, status }); await refresh(); await refreshPlans(); setErro(""); } catch (error) { setErro(error.message); throw error; } finally { setSalvando(false); } }
-  async function submitTenant(event, cliente = null) { event.preventDefault(); const formulario = event.currentTarget; setSalvando(true); setErro(""); const form = new FormData(formulario); try { if (formulario.classList.contains("billing-form")) { await atualizarCobrancaTenant(sessao.token, cliente.id, { dueDate: form.get("dueDate") || null, gracePeriodUntil: form.get("gracePeriodUntil") || null, billingStatus: form.get("billingStatus") }); } else { const payload = { name: form.get("name"), slug: form.get("slug"), productKey: form.get("productKey") }; if (cliente) await atualizarTenant(sessao.token, cliente.id, payload); else await criarTenant(sessao.token, payload); } await refresh(); setFormAberto(false); formulario.reset(); return true; } catch (error) { setErro(error.message); return false; } finally { setSalvando(false); } }
-  async function saveProduct(event, product) { event.preventDefault(); const form = new FormData(event.currentTarget); const payload = { name: form.get("name"), slug: form.get("slug"), category: form.get("category"), description: form.get("description"), productType: form.get("productType"), status: form.get("status"), platforms: form.getAll("platforms") }; setSalvando(true); setErro(""); try { if (product?.id) await atualizarProduto(sessao.token, product.id, payload); else await criarProduto(sessao.token, payload); await refreshProducts(); return true; } catch (error) { setErro(error.message); return false; } finally { setSalvando(false); } }
-  async function deleteProduct(product) { if (!window.confirm(`Excluir o projeto “${product.name}”?`)) return; setErro(""); try { await excluirProduto(sessao.token, product.id); await refreshProducts(); } catch (error) { setErro(error.message); } }
-  async function toggleTenant(cliente) { try { await alterarStatusTenant(sessao.token, cliente.id, cliente.status === "suspended"); await refresh(); } catch (error) { setErro(error.message); } }
-  async function deleteTenant(cliente) { if (!window.confirm(`Excluir a empresa “${cliente.name}”? Todas as unidades vinculadas também serão removidas.`)) return; try { await excluirTenant(sessao.token, cliente.id); await refresh(); if (tenantSelecionado?.id === cliente.id) setTenantSelecionado(null); } catch (error) { setErro(error.message); } }
-  async function createUnit(event) { event.preventDefault(); const formulario = event.currentTarget; setSalvando(true); const form = new FormData(formulario); try { await criarUnidade(sessao.token, tenantSelecionado.id, { name: form.get("name"), slug: form.get("slug"), city: form.get("city"), state: form.get("state") }); const { units } = await listarUnidades(sessao.token, tenantSelecionado.id); setUnidades(units); await refresh(); formulario.reset(); } catch (error) { setErro(error.message); } finally { setSalvando(false); } }
-  async function updateUnit(event, unidade) { event.preventDefault(); const form = new FormData(event.currentTarget); try { await atualizarUnidade(sessao.token, tenantSelecionado.id, unidade.id, { name: form.get("name"), slug: form.get("slug"), city: form.get("city"), state: form.get("state") }); const { units } = await listarUnidades(sessao.token, tenantSelecionado.id); setUnidades(units); await refresh(); } catch (error) { setErro(error.message); } }
-  async function toggleUnit(unidade) { try { await alterarStatusUnidade(sessao.token, tenantSelecionado.id, unidade.id, !unidade.active); const { units } = await listarUnidades(sessao.token, tenantSelecionado.id); setUnidades(units); } catch (error) { setErro(error.message); } }
-  async function deleteUnit(unidade) { if (!window.confirm(`Excluir a unidade “${unidade.name}”? Essa ação não pode ser desfeita.`)) return; try { await excluirUnidade(sessao.token, tenantSelecionado.id, unidade.id); const { units } = await listarUnidades(sessao.token, tenantSelecionado.id); setUnidades(units); await refresh(); } catch (error) { setErro(error.message); } }
-
-  const dashboard = <>
-    <section className="metrics"><article><small>Produtos</small><strong>{products.length}</strong><span>{products.filter((product) => product.status === "development").length} em desenvolvimento</span></article><article><small>Clientes cadastrados</small><strong>{clientes.length}</strong><span>tenants administrados</span></article><article><small>Unidades</small><strong>{clientes.reduce((total, cliente) => total + Number(cliente.units || 0), 0)}</strong><span>vinculadas aos tenants</span></article><article><small>Alertas</small><strong>{clientes.filter((cliente) => cliente.access_level !== "full").length}</strong><span>acessos que pedem atenção</span></article></section>
-    <div className="content-grid"><section className="panel"><div className="panel-heading"><div><span className="eyebrow">PORTFÓLIO</span><h2>Produtos da VM Nexus</h2></div><button onClick={() => setSecao("produtos")}>Gerenciar produtos</button></div><div className="product-list">{products.slice(0, 4).map((product) => <article key={product.id} className="product"><span className="product-icon">{product.name.slice(0, 2).toUpperCase()}</span><div><strong>{product.name}</strong><small>{product.category || TYPE_LABELS[product.product_type]}</small></div><em>{STATUS_LABELS[product.status]}</em></article>)}</div></section><section className="panel clients-panel"><div className="panel-heading"><div><span className="eyebrow">TENANTS</span><h2>Clientes recentes</h2></div><button onClick={() => setSecao("clientes")}>Ver clientes</button></div>{clientes.slice(0, 3).map((cliente) => <article className="client" key={cliente.id}><div><span className="client-mark">{cliente.name.slice(0, 2).toUpperCase()}</span><div><strong>{cliente.name}</strong><small>{cliente.product_key}</small></div></div></article>)}</section></div>
-  </>;
-
-  return <div className="nexus-app">
-    <aside className="sidebar"><div className="brand"><span className="brand-mark">VM</span><div><strong>VM Nexus</strong><small>Digital</small></div></div><nav aria-label="Navegação principal"><span className="nav-label">Central administrativa</span>{menu.map(([id, nome]) => <button key={id} className={secao === id ? "active" : ""} onClick={() => setSecao(id)}><span>{nome}</span><b>›</b></button>)}</nav><div className="sidebar-footer"><span className="status-dot" /><div><strong>Ambiente protegido</strong><small>Uso interno VM Nexus</small></div></div></aside>
-    <main><header className="topbar"><div><small>Central VM Nexus</small><strong>{menu.find(([id]) => id === secao)?.[1]}</strong></div><div className="operator"><span>MN</span><div><strong>{sessao.admin.name}</strong><small>Administrador geral</small></div><button className="logout-button" onClick={() => { localStorage.removeItem("vm_nexus_session"); setSessao(null); }}>Sair</button></div></header><div className="workspace"><section className="hero"><div><span className="eyebrow">ECOSSISTEMA VM NEXUS</span><h1>Controle seus produtos e clientes em uma única central.</h1><p>Administre projetos, plataformas, tenants, unidades e planos em um ambiente privado.</p></div><div className="hero-badge"><span>●</span><strong>Central independente</strong><small>Nenhum cliente possui acesso</small></div></section>{erro && <div className="login-error workspace-error">{erro}</div>}{secao === "clientes" ? <><TenantsView clientes={clientes} products={products} onNovoCliente={() => setFormAberto(true)} onSelecionar={setTenantSelecionado} onEditar={submitTenant} onAlternar={toggleTenant} onExcluir={deleteTenant} />{tenantSelecionado?.id && <UnidadesView tenant={tenantSelecionado} unidades={unidades} onCriar={createUnit} onAtualizar={updateUnit} onAlternar={toggleUnit} onExcluir={deleteUnit} erro={erro} salvando={salvando} />}</> : secao === "produtos" ? <ProductsView products={products} onSave={saveProduct} onDelete={deleteProduct} saving={salvando} error={erro} /> : dashboard}</div><footer><span><i /> Sistema local disponível</span><span>VM Nexus Dashboard 0.2.0</span><span>Uso interno</span></footer></main>
-    {formAberto && <div className="modal-backdrop"><form className="tenant-modal" onSubmit={(event) => submitTenant(event)}><div className="view-heading"><div><span className="eyebrow">NOVO TENANT</span><h2>Cadastrar cliente</h2></div><button type="button" onClick={() => setFormAberto(false)}>Fechar</button></div><label>Nome da empresa<input name="name" placeholder="Ex.: Churrascaria Paulistão" required /></label><label>Identificador<input name="slug" placeholder="churrascaria-paulistao" pattern="[a-z0-9-]+" required /></label><label>Produto<select name="productKey" defaultValue={products[0]?.slug}><ProductOptions products={products} /></select></label>{!products.length && <div className="login-error">Cadastre um projeto antes de criar o tenant.</div>}<button className="tenant-submit" type="submit" disabled={salvando || !products.length}>{salvando ? "Salvando..." : "Cadastrar cliente"}</button></form></div>}
-  </div>;
+  const [section, setSection] = useState("visao"); const [session, setSession] = useState(() => { try { return JSON.parse(localStorage.getItem("vm_nexus_session") || "null"); } catch { return null; } }); const [projects, setProjects] = useState([]); const [tenants, setTenants] = useState([]); const [plans, setPlans] = useState([]); const [selectedProjectId, setSelectedProjectId] = useState(null); const [selectedTenant, setSelectedTenant] = useState(null); const [units, setUnits] = useState([]); const [projectEditor, setProjectEditor] = useState(undefined); const [saving, setSaving] = useState(false); const [error, setError] = useState("");
+  const selectedProject = projects.find((item) => item.id === selectedProjectId); const tenantProjects = useMemo(() => projects.filter(isTenantProject), [projects]); const globalTenantProject = tenantProjects.find((item) => item.id === selectedProjectId) || tenantProjects[0]; const shownProject = section === "tenants" ? globalTenantProject : selectedProject;
+  async function refreshProjects() { const { products } = await listarProdutos(session.token); setProjects(products); return products; }
+  async function refreshTenants() { const { tenants: items } = await listarTenants(session.token); setTenants(items); }
+  async function refreshPlans(project = selectedProject) { if (!project?.slug) { setPlans([]); return; } const { plans: items } = await listarPlanos(session.token, project.slug); setPlans(items); }
+  async function refreshUnits(tenant = selectedTenant) { if (!tenant?.id) { setUnits([]); return; } const { units: items } = await listarUnidades(session.token, tenant.id); setUnits(items); }
+  useEffect(() => {
+    if (!session?.token) return;
+    Promise.all([listarProdutos(session.token), listarTenants(session.token)]).then(([productData, tenantData]) => {
+      setProjects(productData.products); setTenants(tenantData.tenants);
+    }).catch((err) => setError(err.message));
+  }, [session?.token]);
+  useEffect(() => {
+    if (!session?.token || !selectedProject?.slug) return;
+    listarPlanos(session.token, selectedProject.slug).then(({ plans: items }) => setPlans(items)).catch((err) => setError(err.message));
+  }, [session?.token, selectedProject?.slug]);
+  useEffect(() => {
+    if (!session?.token || !selectedTenant?.id) return;
+    listarUnidades(session.token, selectedTenant.id).then(({ units: items }) => setUnits(items)).catch((err) => setError(err.message));
+  }, [session?.token, selectedTenant?.id]);
+  if (!session) return <Login onLogin={(data) => { localStorage.setItem("vm_nexus_session", JSON.stringify(data)); setSession(data); }} />;
+  function openProject(project) { setSelectedProjectId(project.id); setSelectedTenant(null); setSection("projeto"); setError(""); }
+  async function saveProject(event, project, technology) { event.preventDefault(); const form = new FormData(event.currentTarget); const meta = TECHNOLOGIES[technology]; const payload = { name: form.get("name"), slug: form.get("slug"), category: form.get("category"), description: form.get("description"), status: form.get("status"), technology, productType: meta.type, platforms: meta.platforms, tenantEnabled: technology === "tauri" && form.get("tenantEnabled") === "on" }; setSaving(true); setError(""); try { const response = project ? await atualizarProduto(session.token, project.id, payload) : await criarProduto(session.token, payload); const items = await refreshProjects(); const saved = response.product || items.find((item) => item.id === project?.id || item.slug === payload.slug); setProjectEditor(undefined); if (saved) { setSelectedProjectId(saved.id); setSection("projeto"); } return true; } catch (err) { setError(err.message); return false; } finally { setSaving(false); } }
+  async function deleteProject(project) { if (!window.confirm(`Excluir o projeto “${project.name}”?`)) return; try { await excluirProduto(session.token, project.id); await refreshProjects(); if (selectedProjectId === project.id) setSection("projetos"); } catch (err) { setError(err.message); } }
+  async function savePlan(event, plan) { event.preventDefault(); const form = new FormData(event.currentTarget); const benefits = String(form.get("benefits") || "").split(",").map((item) => item.trim()).filter(Boolean); const payload = { productKey: selectedProject.slug, name: form.get("name"), slug: form.get("name"), description: form.get("description"), monthlyPrice: form.get("monthlyPrice"), displayOrder: form.get("displayOrder"), features: { coins: Number(form.get("coins") || 0), benefits } }; setSaving(true); try { if (plan) await atualizarPlano(session.token, plan.id, payload); else await criarPlano(session.token, payload); await refreshPlans(); return true; } catch (err) { setError(err.message); return false; } finally { setSaving(false); } }
+  async function selectTenant(tenant) { setSelectedTenant(tenant); }
+  async function saveTenant(event, tenant) { event.preventDefault(); const form = new FormData(event.currentTarget); setSaving(true); try { const payload = { name: form.get("name"), slug: form.get("slug"), productKey: selectedProject.slug }; if (tenant) await atualizarTenant(session.token, tenant.id, payload); else await criarTenant(session.token, payload); await refreshTenants(); return true; } catch (err) { setError(err.message); return false; } finally { setSaving(false); } }
+  async function createUnit(event) { event.preventDefault(); const form = new FormData(event.currentTarget); setSaving(true); try { await criarUnidade(session.token, selectedTenant.id, { name: form.get("name"), slug: form.get("slug"), city: form.get("city"), state: form.get("state") }); await refreshUnits(); await refreshTenants(); event.currentTarget.reset(); } catch (err) { setError(err.message); } finally { setSaving(false); } }
+  const tenantActions = { create: (event) => saveTenant(event), update: saveTenant, select: selectTenant, createUnit, toggle: async (tenant) => { try { await alterarStatusTenant(session.token, tenant.id, tenant.status === "suspended"); await refreshTenants(); } catch (err) { setError(err.message); } }, remove: async (tenant) => { if (!window.confirm(`Excluir a empresa “${tenant.name}”?`)) return; try { await excluirTenant(session.token, tenant.id); await refreshTenants(); if (selectedTenant?.id === tenant.id) setSelectedTenant(null); } catch (err) { setError(err.message); } }, toggleUnit: async (unit) => { try { await alterarStatusUnidade(session.token, selectedTenant.id, unit.id, !unit.active); await refreshUnits(); } catch (err) { setError(err.message); } }, removeUnit: async (unit) => { if (!window.confirm(`Excluir a unidade “${unit.name}”?`)) return; try { await excluirUnidade(session.token, selectedTenant.id, unit.id); await refreshUnits(); await refreshTenants(); } catch (err) { setError(err.message); } } };
+  const projectTenants = tenants.filter((tenant) => tenant.product_key === shownProject?.slug);
+  const title = section === "projeto" ? selectedProject?.name : menu.find(([id]) => id === section)?.[1] || "Projetos";
+  return <div className="nexus-app clean-app"><aside className="sidebar"><div className="brand"><span className="brand-mark">VM</span><div><strong>VM Nexus</strong><small>Digital</small></div></div><nav><span className="nav-label">CENTRAL DE PROJETOS</span>{menu.map(([id, label]) => <button key={id} className={section === id ? "active" : ""} onClick={() => { setSection(id); if (id === "tenants" && globalTenantProject) setSelectedProjectId(globalTenantProject.id); }}><span>{label}</span><b>›</b></button>)}</nav><div className="sidebar-footer"><span className="status-dot" /><div><strong>Ambiente protegido</strong><small>Uso interno VM Nexus</small></div></div></aside><main><header className="topbar"><div><small>Central VM Nexus</small><strong>{title}</strong></div><div className="operator"><span>MN</span><div><strong>{session.admin.name}</strong><small>Administrador geral</small></div><button className="logout-button" onClick={() => { localStorage.removeItem("vm_nexus_session"); setSession(null); }}>Sair</button></div></header><div className="workspace clean-workspace">{error && <div className="login-error workspace-error">{error}<button onClick={() => setError("")}>×</button></div>}{projectEditor !== undefined ? <section className="page-section"><ProjectForm project={projectEditor} onSave={saveProject} onCancel={() => setProjectEditor(undefined)} saving={saving} error={error} /></section> : section === "visao" ? <Overview projects={projects} onOpen={openProject} onNew={() => setProjectEditor(null)} /> : section === "projetos" ? <ProjectsView projects={projects} onOpen={openProject} onEdit={setProjectEditor} onDelete={deleteProject} /> : section === "projeto" && selectedProject ? <ProjectWorkspace project={selectedProject} plans={plans} tenants={projectTenants} selectedTenant={selectedTenant} units={units} onBack={() => setSection("projetos")} onProjectSave={saveProject} onPlansSave={savePlan} onPlanToggle={async (plan) => { try { await alterarStatusPlano(session.token, plan.id, !plan.active); await refreshPlans(); } catch (err) { setError(err.message); } }} onTenant={tenantActions} saving={saving} error={error} /> : section === "tenants" && shownProject ? <ProjectWorkspace project={shownProject} plans={plans} tenants={projectTenants} selectedTenant={selectedTenant} units={units} onBack={() => setSection("projetos")} onProjectSave={saveProject} onPlansSave={savePlan} onPlanToggle={() => {}} onTenant={tenantActions} saving={saving} error={error} /> : <section className="empty-card"><h2>Nenhum sistema Tauri multi-tenant.</h2><p>Ao editar um sistema Tauri, marque “Este é um sistema multi-tenant” para administrar empresas e unidades aqui.</p><button className="button-primary" onClick={() => setSection("projetos")}>Ver projetos</button></section>}</div><footer><span><i /> Sistema disponível</span><span>VM Nexus Dashboard</span><span>Uso interno</span></footer></main></div>;
 }
 
 export default App;

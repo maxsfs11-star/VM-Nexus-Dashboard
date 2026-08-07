@@ -29,7 +29,7 @@ function withAccess(tenant) {
 }
 
 async function productExists(productKey, includeArchived = false) {
-  const result = await pool.query("SELECT 1 FROM nexus_products WHERE slug = $1 AND ($2 OR status <> 'archived')", [productKey, includeArchived]);
+  const result = await pool.query("SELECT 1 FROM nexus_products WHERE slug = $1 AND tenant_enabled = TRUE AND ($2 OR status <> 'archived')", [productKey, includeArchived]);
   return Boolean(result.rows[0]);
 }
 
@@ -51,7 +51,7 @@ router.post("/", async (req, res, next) => {
     const slug = String(req.body?.slug || "").trim().toLowerCase();
     const productKey = String(req.body?.productKey || "mesamanda").trim().toLowerCase();
     if (!name || !slug) return res.status(400).json({ error: "Nome e identificador do tenant são obrigatórios." });
-    if (!(await productExists(productKey))) return res.status(400).json({ error: "Selecione um projeto ativo do catálogo." });
+    if (!(await productExists(productKey))) return res.status(400).json({ error: "Selecione um sistema Tauri multi-tenant ativo." });
     const result = await pool.query("INSERT INTO nexus_tenants (name, slug, product_key) VALUES ($1, $2, $3) RETURNING id, name, slug, product_key, status, billing_status, due_date, grace_period_until, created_at", [name, slug, productKey]);
     await pool.query("INSERT INTO nexus_audit_logs (admin_user_id, action, entity_type, entity_id, metadata) VALUES ($1, $2, $3, $4, $5)", [req.admin.sub, "tenant.created", "tenant", result.rows[0].id, JSON.stringify({ name, slug, productKey })]);
     return res.status(201).json({ tenant: withAccess(result.rows[0]) });
