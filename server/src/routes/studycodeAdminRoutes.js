@@ -19,6 +19,18 @@ router.get("/billing", async (_req, res, next) => {
         GROUP BY plan.id
         ORDER BY plan.display_order, plan.monthly_price, plan.name`),
       pool.query(`
+        SELECT txn.id, txn.amount, txn.currency,
+          txn.status, txn.provider, txn.payment_method,
+          txn.checkout_session_id, txn.payment_intent_id,
+          payment.subscription_id, payment.started_at, payment.next_billing_at,
+          payment.cancelled_at, txn.created_at, txn.updated_at,
+          student.name AS student_name, student.email AS student_email,
+          plan.name AS plan_name, plan.slug AS plan_slug, plan.features AS plan_features
+        FROM studycode_billing_transactions txn
+        LEFT JOIN studycode_billing_payments payment ON payment.id = txn.billing_payment_id
+        LEFT JOIN studycode_users student ON student.id = txn.studycode_user_id
+        LEFT JOIN nexus_plans plan ON plan.id = txn.plan_id
+        UNION ALL
         SELECT payment.id, payment.amount, payment.currency, payment.status,
           payment.provider, payment.payment_method, payment.checkout_session_id,
           payment.payment_intent_id, payment.subscription_id, payment.started_at,
@@ -28,7 +40,12 @@ router.get("/billing", async (_req, res, next) => {
         FROM studycode_billing_payments payment
         LEFT JOIN studycode_users student ON student.id = payment.studycode_user_id
         LEFT JOIN nexus_plans plan ON plan.id = payment.plan_id
-        ORDER BY payment.created_at DESC
+        WHERE payment.status = 'pending'
+          AND NOT EXISTS (
+            SELECT 1 FROM studycode_billing_transactions txn
+            WHERE txn.billing_payment_id = payment.id
+          )
+        ORDER BY created_at DESC
         LIMIT 250`),
     ]);
     return res.json({ plans: plans.rows, payments: payments.rows });

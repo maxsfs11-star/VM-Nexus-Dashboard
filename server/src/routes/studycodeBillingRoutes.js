@@ -29,6 +29,7 @@ router.get("/status", async (req, res, next) => {
       SELECT payment.id, payment.product_id, payment.plan_slug, payment.amount,
              payment.currency, payment.status, payment.provider, payment.payment_method,
              payment.started_at, payment.next_billing_at, payment.cancelled_at,
+             payment.cancel_at_period_end,
              payment.created_at, payment.updated_at
       FROM studycode_billing_payments payment
       WHERE payment.studycode_user_id = $1
@@ -40,12 +41,25 @@ router.get("/status", async (req, res, next) => {
 router.get("/history", async (req, res, next) => {
   try {
     const result = await pool.query(`
-      SELECT id, product_id, plan_slug, amount, currency, status, provider,
-             payment_method, checkout_session_id, payment_intent_id,
-             subscription_id, started_at, next_billing_at, cancelled_at,
-             created_at, updated_at
-      FROM studycode_billing_payments
-      WHERE studycode_user_id = $1
+      SELECT txn.id, payment.plan_slug, txn.amount,
+             txn.currency, txn.status, txn.provider,
+             txn.payment_method, txn.checkout_session_id, txn.invoice_id,
+             txn.payment_intent_id, txn.paid_at,
+             txn.created_at, txn.updated_at
+      FROM studycode_billing_transactions txn
+      LEFT JOIN studycode_billing_payments payment ON payment.id = txn.billing_payment_id
+      WHERE txn.studycode_user_id = $1
+      UNION ALL
+      SELECT payment.id, payment.plan_slug, payment.amount, payment.currency,
+             payment.status, payment.provider, payment.payment_method,
+             payment.checkout_session_id, NULL::text AS invoice_id, payment.payment_intent_id,
+             NULL::timestamptz AS paid_at, payment.created_at, payment.updated_at
+      FROM studycode_billing_payments payment
+      WHERE payment.studycode_user_id = $1 AND payment.status = 'pending'
+        AND NOT EXISTS (
+          SELECT 1 FROM studycode_billing_transactions txn
+          WHERE txn.billing_payment_id = payment.id
+        )
       ORDER BY created_at DESC`, [req.student.sub]);
     return res.json({ payments: result.rows });
   } catch (error) { return next(error); }
@@ -98,6 +112,13 @@ router.post("/checkout-session", async (req, res, next) => {
       // Assinaturas recorrentes usam cartão. Boleto/Pix ficam preparados para
       // compras avulsas de CodeCoins, que terão um checkout de pagamento único.
       payment_method_types: ["card"],
+      branding_settings: {
+        logo: { type: "url", url: env.studycodeCheckoutLogoUrl },
+        background_color: "#FFFFFF",
+        button_color: "#0789B8",
+        border_style: "rounded",
+        font_family: "inter",
+      },
     });
     await pool.query(`
       INSERT INTO studycode_billing_payments
@@ -115,10 +136,25 @@ router.post("/cancel", async (req, res, next) => {
     const result = await pool.query(`SELECT id, subscription_id FROM studycode_billing_payments WHERE studycode_user_id = $1 AND status = 'active' ORDER BY created_at DESC LIMIT 1`, [req.student.sub]);
     const subscription = result.rows[0];
     if (!subscription) return res.status(404).json({ error: "Nenhuma assinatura ativa encontrada." });
-    if (subscription.subscription_id) await stripe.subscriptions.cancel(subscription.subscription_id);
-    await pool.query("UPDATE studycode_billing_payments SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW() WHERE id = $1", [subscription.id]);
-    await pool.query("UPDATE studycode_users SET plan_id = NULL, updated_at = NOW() WHERE id = $1", [req.student.sub]);
-    return res.json({ ok: true, status: "cancelled" });
+    if (!subscription.subscription_id) return res.status(409).json({ error: "Esta compra nao possui renovacao automatica." });
+    const stripeSubscription = await stripe.subscriptions.update(subscription.subscription_id, { cancel_at_period_end: true });
+    const nextBillingAt = stripeSubscription.items?.data
+      ?.map((item) => item.current_period_end)
+      .filter(Boolean)
+      .sort((a, b) => b - a)[0];
+    await pool.query(
+      `UPDATE studycode_billing_payments
+       SET cancel_at_period_end = TRUE,
+           next_billing_at = COALESCE($2, next_billing_at), updated_at = NOW()
+       WHERE id = $1`,
+      [subscription.id, nextBillingAt ? new Date(nextBillingAt * 1000) : null],
+    );
+    return res.json({
+      ok: true,
+      status: "active",
+      cancelAtPeriodEnd: true,
+      accessUntil: nextBillingAt ? new Date(nextBillingAt * 1000) : null,
+    });
   } catch (error) { return next(error); }
 });
 
