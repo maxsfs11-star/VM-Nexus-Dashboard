@@ -17,7 +17,7 @@ function dateInput(value) {
 
 const statusLabel = { active: "Ativa", trial: "Em teste", paused: "Pausada", cancelled: "Cancelada" };
 
-export default function BillingSubscriptionsView({ token, onError }) {
+export default function BillingSubscriptionsView({ token, onError, onOpenStudyCode }) {
   const [items, setItems] = useState([]);
   const [tenants, setTenants] = useState([]);
   const [plans, setPlans] = useState([]);
@@ -66,13 +66,18 @@ export default function BillingSubscriptionsView({ token, onError }) {
     }
   }
 
-  async function openCreate() {
+  async function startMesaMandaCreate() {
     const available = tenants.filter((tenant) => !items.some((item) => item.tenant_id === tenant.id && item.status !== "cancelled"));
     if (!available.length) {
       onError(tenants.length ? "Todos os clientes já possuem uma assinatura ativa ou em teste." : "Cadastre um cliente em Tenants Tauri antes de criar a assinatura.");
       return;
     }
     await selectCreateTenant(available[0].id);
+  }
+
+  function openCreate() {
+    // Não escolher MesaManda silenciosamente: StudyCode usa alunos, não tenants.
+    setSelected({ mode: "choose" });
   }
 
   async function openSubscription(item) {
@@ -172,7 +177,14 @@ export default function BillingSubscriptionsView({ token, onError }) {
 
       {!items.length && <div className="empty-card"><h3>Nenhuma assinatura encontrada.</h3><p>Crie a primeira assinatura vinculando um cliente a um plano.</p><button className="button-primary" onClick={openCreate}>Nova assinatura</button></div>}
 
-      {selected && <div className="billing-drawer">
+      {selected?.mode === "choose" && <div className="billing-drawer">
+        <div className="section-heading"><div><span className="eyebrow">NOVA ASSINATURA</span><h2>Escolha o produto</h2><p>O fluxo de empresas é do MesaManda; assinaturas de alunos pertencem ao StudyCode.</p></div><button className="button-quiet" onClick={() => setSelected(null)}>Fechar</button></div>
+        <div className="quick-actions">
+          <button className="button-primary" onClick={startMesaMandaCreate}>MesaManda · empresa</button>
+          <button className="button-quiet" onClick={() => { setSelected(null); if (onOpenStudyCode) onOpenStudyCode(); else onError("Para gerenciar o StudyCode, abra Projetos → StudyCode → Alunos ou Monetização."); }}>StudyCode · aluno</button>
+        </div>
+      </div>}
+      {selected && selected.mode !== "choose" && <div className="billing-drawer">
         <div className="section-heading"><div><span className="eyebrow">{selected.mode === "create" ? "NOVA ASSINATURA" : "GESTÃO DA ASSINATURA"}</span><h2>{selected.tenant_name}</h2><p>{selected.product_name} · {selected.tenant_slug}</p></div><button className="button-quiet" onClick={() => setSelected(null)}>Fechar</button></div>
         <form className="billing-form" onSubmit={saveSubscription}>
           <h3>Plano e ciclo</h3>
