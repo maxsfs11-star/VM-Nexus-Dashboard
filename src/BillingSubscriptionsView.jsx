@@ -181,7 +181,7 @@ export default function BillingSubscriptionsView({ token, onError, onOpenStudyCo
         <div className="section-heading"><div><span className="eyebrow">NOVA ASSINATURA</span><h2>Escolha o produto</h2><p>O fluxo de empresas é do MesaManda; assinaturas de alunos pertencem ao StudyCode.</p></div><button className="button-quiet" onClick={() => setSelected(null)}>Fechar</button></div>
         <div className="quick-actions">
           <button className="button-primary" onClick={startMesaMandaCreate}>MesaManda · empresa</button>
-          <button className="button-quiet" onClick={() => { setSelected(null); if (onOpenStudyCode) onOpenStudyCode(); else onError("Para gerenciar o StudyCode, abra Projetos → StudyCode → Alunos ou Monetização."); }}>StudyCode · aluno</button>
+          <button className="button-quiet" onClick={() => { setSelected(null); onOpenStudyCode?.(); }}>StudyCode · aluno</button>
         </div>
       </div>}
       {selected && selected.mode !== "choose" && <div className="billing-drawer">
