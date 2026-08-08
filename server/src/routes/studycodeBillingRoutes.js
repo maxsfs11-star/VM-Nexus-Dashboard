@@ -9,15 +9,15 @@ const stripe = env.stripeSecretKey ? new Stripe(env.stripeSecretKey) : null;
 const APP_SUCCESS_URL = process.env.STUDYCODE_BILLING_SUCCESS_URL || "studycode://billing/success";
 const APP_CANCEL_URL = process.env.STUDYCODE_BILLING_CANCEL_URL || "studycode://billing/cancel";
 
-async function premiumPlan() {
+async function planForCheckout(planSlug = "premium") {
   const result = await pool.query(`
     SELECT plan.id, plan.name, plan.slug, plan.description, plan.monthly_price,
            plan.features, product.slug AS product_slug
     FROM nexus_plans plan
     JOIN nexus_products product ON product.id = plan.product_id
-    WHERE product.slug = 'studycode' AND plan.slug = 'premium'
+    WHERE product.slug = 'studycode' AND plan.slug = $1
       AND product.status <> 'archived' AND plan.active = TRUE
-    LIMIT 1`);
+    LIMIT 1`, [planSlug]);
   return result.rows[0];
 }
 
@@ -54,42 +54,47 @@ router.get("/history", async (req, res, next) => {
 router.post("/checkout-session", async (req, res, next) => {
   try {
     if (!stripe) return res.status(503).json({ error: "Pagamentos ainda não configurados no servidor." });
-    const plan = await premiumPlan();
-    if (!plan) return res.status(404).json({ error: "Plano Premium do StudyCode não está disponível." });
+    const requestedPlan = String(req.body?.plan_id || req.body?.plan_slug || "premium").trim().toLowerCase();
+    const plan = await planForCheckout(requestedPlan);
+    if (!plan) return res.status(404).json({ error: "Plano do StudyCode não está disponível." });
     const studentResult = await pool.query("SELECT id, name, email FROM studycode_users WHERE id = $1 AND active = TRUE", [req.student.sub]);
     const student = studentResult.rows[0];
     if (!student) return res.status(401).json({ error: "Aluno StudyCode não encontrado." });
 
     // O aplicativo não envia preço. O valor vem exclusivamente do plano editado no Dashboard.
     const amount = Number(plan.monthly_price);
-    if (!Number.isFinite(amount) || amount < 0) return res.status(500).json({ error: "Valor do plano inválido no Dashboard." });
+    if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ error: "Este plano não exige checkout ou possui valor inválido no Dashboard." });
     const tenantId = req.body?.tenant_id ? String(req.body.tenant_id) : null;
+    const features = plan.features && typeof plan.features === "object" ? plan.features : {};
+    const billingType = features.billingType === "lifetime" ? "lifetime" : "recurring";
     const metadata = {
       studyCode_user_id: student.id,
       tenant_id: tenantId || "",
       product_id: "StudyCode",
-      plan_id: "premium",
+      plan_id: plan.slug,
       dashboard_plan_id: plan.id,
+      billing_type: billingType,
       amount_brl: amount.toFixed(2),
       student_name: student.name,
       student_email: student.email,
     };
+    const priceData = {
+      currency: "brl",
+      unit_amount: Math.round(amount * 100),
+      product_data: { name: plan.name || "StudyCode Premium", description: plan.description || undefined },
+      ...(billingType === "recurring" ? { recurring: { interval: "month" } } : {}),
+    };
     const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
+      mode: billingType === "lifetime" ? "payment" : "subscription",
       line_items: [{
-        price_data: {
-          currency: "brl",
-          unit_amount: Math.round(amount * 100),
-          recurring: { interval: "month" },
-          product_data: { name: plan.name || "StudyCode Premium", description: plan.description || undefined },
-        },
+        price_data: priceData,
         quantity: 1,
       }],
       customer_email: student.email,
       success_url: APP_SUCCESS_URL,
       cancel_url: APP_CANCEL_URL,
       metadata,
-      subscription_data: { metadata },
+      ...(billingType === "recurring" ? { subscription_data: { metadata } } : { payment_intent_data: { metadata } }),
       // Assinaturas recorrentes usam cartão. Boleto/Pix ficam preparados para
       // compras avulsas de CodeCoins, que terão um checkout de pagamento único.
       payment_method_types: ["card"],
@@ -97,10 +102,10 @@ router.post("/checkout-session", async (req, res, next) => {
     await pool.query(`
       INSERT INTO studycode_billing_payments
         (studycode_user_id, tenant_id, product_id, plan_id, plan_slug, provider, amount, checkout_session_id, status, provider_payload)
-      VALUES ($1, $2, 'StudyCode', $3, 'premium', 'stripe', $4, $5, 'pending', $6)
+      VALUES ($1, $2, 'StudyCode', $3, $4, 'stripe', $5, $6, 'pending', $7)
       ON CONFLICT (checkout_session_id) DO NOTHING`,
-      [student.id, tenantId || null, plan.id, amount, session.id, JSON.stringify({ sessionId: session.id, metadata })]);
-    return res.json({ url: session.url, sessionId: session.id, plan: { id: plan.id, slug: plan.slug, amount } });
+      [student.id, tenantId || null, plan.id, plan.slug, amount, session.id, JSON.stringify({ sessionId: session.id, metadata })]);
+    return res.json({ url: session.url, sessionId: session.id, plan: { id: plan.id, slug: plan.slug, amount, billingType } });
   } catch (error) { return next(error); }
 });
 

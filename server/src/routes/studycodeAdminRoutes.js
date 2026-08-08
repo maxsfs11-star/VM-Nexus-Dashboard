@@ -5,6 +5,36 @@ import { authenticate } from "../middleware/authenticate.js";
 const router = Router();
 router.use(authenticate);
 
+router.get("/billing", async (_req, res, next) => {
+  try {
+    const [plans, payments] = await Promise.all([
+      pool.query(`
+        SELECT plan.id, plan.name, plan.slug, plan.description, plan.monthly_price,
+          plan.features, plan.display_order, plan.active,
+          COUNT(DISTINCT student.id) FILTER (WHERE student.active = TRUE)::int AS subscribers
+        FROM nexus_plans plan
+        JOIN nexus_products product ON product.id = plan.product_id
+        LEFT JOIN studycode_users student ON student.plan_id = plan.id
+        WHERE product.slug = 'studycode'
+        GROUP BY plan.id
+        ORDER BY plan.display_order, plan.monthly_price, plan.name`),
+      pool.query(`
+        SELECT payment.id, payment.amount, payment.currency, payment.status,
+          payment.provider, payment.payment_method, payment.checkout_session_id,
+          payment.payment_intent_id, payment.subscription_id, payment.started_at,
+          payment.next_billing_at, payment.cancelled_at, payment.created_at,
+          payment.updated_at, student.name AS student_name, student.email AS student_email,
+          plan.name AS plan_name, plan.slug AS plan_slug, plan.features AS plan_features
+        FROM studycode_billing_payments payment
+        LEFT JOIN studycode_users student ON student.id = payment.studycode_user_id
+        LEFT JOIN nexus_plans plan ON plan.id = payment.plan_id
+        ORDER BY payment.created_at DESC
+        LIMIT 250`),
+    ]);
+    return res.json({ plans: plans.rows, payments: payments.rows });
+  } catch (error) { return next(error); }
+});
+
 router.get("/students", async (_req, res, next) => {
   try {
     const result = await pool.query(`

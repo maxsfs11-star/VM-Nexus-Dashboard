@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  alterarStatusPlano,
   atribuirPlanoTenant,
   atualizarCobrancaTenant,
+  atualizarPlano,
+  criarPlano,
   listarAssinaturas,
   listarPlanos,
+  listarStudyCodeCobrancas,
   listarTenants,
 } from "./api";
 
@@ -16,8 +20,98 @@ function dateInput(value) {
 }
 
 const statusLabel = { active: "Ativa", trial: "Em teste", paused: "Pausada", cancelled: "Cancelada" };
+const paymentStatusLabel = {
+  pending: "Pendente",
+  active: "Ativo",
+  paid: "Pago",
+  past_due: "Vencido",
+  failed: "Falhou",
+  cancelled: "Cancelado",
+};
 
-export default function BillingSubscriptionsView({ token, onError, onOpenStudyCode }) {
+function readFeatures(value) {
+  if (value && typeof value === "object") return value;
+  try { return JSON.parse(value || "{}"); } catch { return {}; }
+}
+
+function dateTime(value) {
+  return value ? new Date(value).toLocaleString("pt-BR") : "—";
+}
+
+function StudyCodeBillingPanel({ token, onError, onBack }) {
+  const [data, setData] = useState({ plans: [], payments: [] });
+  const [editing, setEditing] = useState(undefined);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    try { setData(await listarStudyCodeCobrancas(token)); }
+    catch (error) { onError(error.message); }
+    finally { setLoading(false); }
+  }
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [token]);
+
+  async function savePlan(event) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const currentFeatures = readFeatures(editing?.features);
+    const billingType = String(form.get("billingType") || "recurring");
+    const payload = {
+      productKey: "studycode",
+      name: form.get("name"),
+      slug: form.get("slug"),
+      description: form.get("description"),
+      monthlyPrice: Number(form.get("price") || 0),
+      displayOrder: Number(form.get("displayOrder") || 0),
+      features: {
+        ...currentFeatures,
+        billingType,
+        durationMonths: billingType === "lifetime" ? null : Number(form.get("durationMonths") || 1),
+        benefits: String(form.get("benefits") || "").split("\n").map((item) => item.trim()).filter(Boolean),
+      },
+    };
+    setSaving(true);
+    try {
+      if (editing?.id) await atualizarPlano(token, editing.id, payload);
+      else await criarPlano(token, payload);
+      setEditing(undefined);
+      await load();
+    } catch (error) { onError(error.message); }
+    finally { setSaving(false); }
+  }
+
+  async function togglePlan(plan) {
+    try { await alterarStatusPlano(token, plan.id, !plan.active); await load(); }
+    catch (error) { onError(error.message); }
+  }
+
+  const activeSubscriptions = data.payments.filter((item) => item.status === "active").length;
+  const pendingPayments = data.payments.filter((item) => item.status === "pending" || item.status === "past_due").length;
+
+  return <section className="page-section detail-page billing-page studycode-billing-page">
+    <div className="page-heading"><div><span className="eyebrow">STUDYCODE · ASSINATURAS</span><h1>Planos e pagamentos</h1><p>Defina os valores exibidos no aplicativo e acompanhe cada pagamento confirmado pelo servidor.</p></div><div className="control-filters"><button className="button-quiet" onClick={onBack}>Voltar aos produtos</button><button className="button-quiet" onClick={load}>{loading ? "Atualizando..." : "Atualizar"}</button><button className="button-primary" onClick={() => setEditing(null)}>Novo plano</button></div></div>
+
+    <div className="billing-kpis"><article><small>Planos ativos</small><strong>{data.plans.filter((item) => item.active).length}</strong><span>disponíveis no aplicativo</span></article><article><small>Assinaturas ativas</small><strong>{activeSubscriptions}</strong><span>acessos Premium e vitalícios</span></article><article className={pendingPayments ? "billing-attention" : ""}><small>Pagamentos pendentes</small><strong>{pendingPayments}</strong><span>aguardando confirmação</span></article><article><small>Histórico</small><strong>{data.payments.length}</strong><span>transações registradas</span></article></div>
+
+    {editing !== undefined && <form className="billing-form studycode-plan-form" onSubmit={savePlan}>
+      <div className="section-heading"><div><span className="eyebrow">{editing?.id ? "EDITAR PLANO" : "NOVO PLANO"}</span><h2>{editing?.name || "Configure um novo plano"}</h2><p>Preço e modalidade são definidos aqui; o aplicativo apenas consulta estes dados.</p></div><button className="button-quiet" type="button" onClick={() => setEditing(undefined)}>Fechar</button></div>
+      <div className="editor-grid"><label>Nome<input name="name" required defaultValue={editing?.name || ""} placeholder="Ex.: Premium" /></label><label>Identificador<input name="slug" required disabled={Boolean(editing?.id)} defaultValue={editing?.slug || ""} placeholder="premium" /></label></div>
+      <label>Descrição<textarea name="description" rows="2" defaultValue={editing?.description || ""} placeholder="O que este plano oferece" /></label>
+      <div className="editor-grid"><label>Preço (R$)<input name="price" type="number" min="0" step="0.01" required defaultValue={editing?.monthly_price ?? 0} /></label><label>Modalidade<select name="billingType" defaultValue={readFeatures(editing?.features).billingType || "recurring"}><option value="recurring">Assinatura mensal</option><option value="lifetime">Acesso vitalício</option></select></label><label>Duração de acesso (meses)<input name="durationMonths" type="number" min="1" defaultValue={readFeatures(editing?.features).durationMonths || 1} /></label><label>Ordem de exibição<input name="displayOrder" type="number" min="0" defaultValue={editing?.display_order || 0} /></label></div>
+      <label>Benefícios, um por linha<textarea name="benefits" rows="4" defaultValue={(readFeatures(editing?.features).benefits || []).join("\n")} placeholder={'Todas as linguagens\nIA com limite maior\nCertificados'} /></label>
+      <button className="button-primary" disabled={saving}>{saving ? "Salvando..." : "Salvar plano"}</button>
+    </form>}
+
+    <section className="workspace-panel"><div className="section-heading"><div><span className="eyebrow">CATÁLOGO COMERCIAL</span><h2>Planos do StudyCode</h2><p>Edite preços, prazo, benefícios e disponibilidade sem alterar o aplicativo.</p></div></div><div className="plan-grid">{data.plans.map((plan) => { const features = readFeatures(plan.features); const lifetime = features.billingType === "lifetime"; return <article className="monetization-card" key={plan.id}><div><span className={`status-pill ${plan.active ? "available" : "planned"}`}>{plan.active ? "ATIVO" : "PAUSADO"}</span><h3>{plan.name}</h3><p>{plan.description || "Sem descrição cadastrada."}</p></div><strong>{money(plan.monthly_price)}<small>{lifetime ? " pagamento único" : "/mês"}</small></strong><div className="coin-line">{lifetime ? "Acesso vitalício" : `${features.durationMonths || 1} mês(es) de acesso`}</div><ul>{(features.benefits || []).map((benefit) => <li key={benefit}>{benefit}</li>)}</ul><small>{plan.subscribers || 0} aluno(s) neste plano</small><div className="action-row"><button className="button-quiet" onClick={() => setEditing(plan)}>Editar preço e plano</button><button className="button-quiet" onClick={() => togglePlan(plan)}>{plan.active ? "Pausar" : "Ativar"}</button></div></article>; })}</div>{!data.plans.length && <div className="empty-card"><h3>Nenhum plano cadastrado.</h3><p>Use “Novo plano” para criar a primeira oferta do StudyCode.</p></div>}</section>
+
+    <section className="workspace-panel"><div className="section-heading"><div><span className="eyebrow">HISTÓRICO FINANCEIRO</span><h2>Pagamentos do StudyCode</h2><p>Data, horário, plano, valor, método e vencimento registrados pelo backend.</p></div></div><div className="payment-table studycode-payment-history"><div className="payment-table-head"><span>Assinante</span><span>Plano</span><span>Valor</span><span>Status</span><span>Pagamento</span><span>Próxima cobrança</span></div>{data.payments.map((payment) => <div className="payment-row" key={payment.id}><span><strong>{payment.student_name || "Conta removida"}</strong><small>{payment.student_email || "—"}</small></span><span><strong>{payment.plan_name || payment.plan_slug}</strong><small>{readFeatures(payment.plan_features).billingType === "lifetime" ? "Vitalício" : "Mensal"}</small></span><span>{money(payment.amount)}</span><span><em className={`status-pill ${["active", "paid"].includes(payment.status) ? "available" : "planned"}`}>{paymentStatusLabel[payment.status] || payment.status}</em></span><span><strong>{payment.payment_method || payment.provider}</strong><small>{dateTime(payment.created_at)}</small></span><span>{dateTime(payment.next_billing_at)}</span></div>)}</div>{!data.payments.length && <div className="empty-card"><h3>Nenhum pagamento registrado.</h3><p>As transações aparecerão aqui depois que o webhook confirmar ou atualizar o pagamento.</p></div>}</section>
+  </section>;
+}
+
+export default function BillingSubscriptionsView({ token, onError }) {
   const [items, setItems] = useState([]);
   const [tenants, setTenants] = useState([]);
   const [plans, setPlans] = useState([]);
@@ -159,6 +253,8 @@ export default function BillingSubscriptionsView({ token, onError, onOpenStudyCo
   const mrr = items.filter((item) => item.status === "active").reduce((total, item) => total + Number(item.monthly_price || 0), 0);
   const availableTenants = useMemo(() => tenants.filter((tenant) => !items.some((item) => item.tenant_id === tenant.id && item.status !== "cancelled")), [items, tenants]);
 
+  if (selected?.mode === "studycode") return <StudyCodeBillingPanel token={token} onError={onError} onBack={() => setSelected(null)} />;
+
   return (
     <section className="page-section detail-page billing-page">
       <div className="page-heading">
@@ -192,13 +288,13 @@ export default function BillingSubscriptionsView({ token, onError, onOpenStudyCo
         </div>)}
       </div>
 
-      {!items.length && <div className="empty-card"><h3>Nenhuma assinatura encontrada.</h3><p>Crie a primeira assinatura vinculando um cliente a um plano.</p><button className="button-primary" onClick={openCreate}>Nova assinatura</button></div>}
+      {!items.length && <div className="empty-card"><h3>Nenhuma assinatura encontrada.</h3><p>Escolha um produto para configurar seus planos e assinaturas.</p><button className="button-primary" onClick={openCreate}>Nova assinatura</button></div>}
 
       {selected?.mode === "choose" && <div className="billing-drawer billing-product-chooser">
-        <div className="section-heading"><div><span className="eyebrow">NOVA ASSINATURA</span><h2>Escolha o produto</h2><p>O fluxo de empresas é do MesaManda; assinaturas de alunos pertencem ao StudyCode.</p></div><button className="button-quiet" onClick={() => setSelected(null)}>Fechar</button></div>
+        <div className="section-heading"><div><span className="eyebrow">CENTRAL DE ASSINATURAS</span><h2>Escolha o produto</h2><p>Cada produto possui seus próprios planos, preços, assinaturas e histórico financeiro.</p></div><button className="button-quiet" onClick={() => setSelected(null)}>Fechar</button></div>
         <div className="quick-actions">
           <button className="button-primary" onClick={startMesaMandaCreate}>MesaManda · empresa</button>
-          <button className="button-quiet" onClick={() => { setSelected(null); onOpenStudyCode?.(); }}>StudyCode · aluno</button>
+          <button className="button-quiet" onClick={() => setSelected({ mode: "studycode" })}>StudyCode · assinaturas</button>
         </div>
       </div>}
       {selected && selected.mode !== "choose" && <div className="billing-drawer">

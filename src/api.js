@@ -103,6 +103,7 @@ export function excluirProduto(token, productId) {
 }
 
 export function listarStudyCodeAlunos(token) { return request("/api/studycode/admin/students", { token }); }
+export function listarStudyCodeCobrancas(token) { return request("/api/studycode/admin/billing", { token }); }
 export function detalharStudyCodeAluno(token, studentId) { return request(`/api/studycode/admin/students/${studentId}`, { token }); }
 export function listarStudyCodeConteudo(token) { return request("/api/studycode/admin/content", { token }); }
 export function detalharStudyCodeConteudo(token, trackId) { return request(`/api/studycode/admin/content/${trackId}`, { token }); }

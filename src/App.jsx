@@ -4254,15 +4254,7 @@ function App() {
           ) : section === "financeiro" ? (
             <FinancialView token={session.token} onError={setError} />
           ) : section === "assinaturas" ? (
-          <SubscriptionsView
-            token={session.token}
-            onError={setError}
-            onOpenStudyCode={() => {
-              const studyCode = projects.find((project) => project.slug === "studycode");
-              if (studyCode) openProject(studyCode);
-              else setError("Cadastre o projeto StudyCode antes de gerenciar assinaturas de alunos.");
-            }}
-          />
+            <SubscriptionsView token={session.token} onError={setError} />
           ) : section === "alunos" ? (
             <StudentDirectoryView token={session.token} onError={setError} />
           ) : section === "permissoes" ? (

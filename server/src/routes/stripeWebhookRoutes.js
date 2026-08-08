@@ -37,14 +37,14 @@ router.post("/stripe", async (req, res) => {
           await pool.query(`
             INSERT INTO studycode_billing_payments
               (studycode_user_id, tenant_id, product_id, plan_id, plan_slug, provider, amount, payment_method, checkout_session_id, payment_intent_id, subscription_id, status, started_at, provider_payload)
-            VALUES ($1, NULLIF($2, '')::uuid, 'StudyCode', NULLIF($3, '')::uuid, 'premium', 'stripe', $4, $5, $6, $7, $8, $9, CASE WHEN $9 = 'active' THEN NOW() ELSE NULL END, $10)
+            VALUES ($1, NULLIF($2, '')::uuid, 'StudyCode', NULLIF($3, '')::uuid, $4, 'stripe', $5, $6, $7, $8, $9, $10, CASE WHEN $10 = 'active' THEN NOW() ELSE NULL END, $11)
             ON CONFLICT (checkout_session_id) DO UPDATE SET
               status = EXCLUDED.status, payment_method = EXCLUDED.payment_method,
               payment_intent_id = COALESCE(EXCLUDED.payment_intent_id, studycode_billing_payments.payment_intent_id),
               subscription_id = COALESCE(EXCLUDED.subscription_id, studycode_billing_payments.subscription_id),
               started_at = COALESCE(EXCLUDED.started_at, studycode_billing_payments.started_at),
               provider_payload = EXCLUDED.provider_payload, updated_at = NOW()`,
-            [studycodeUserId, studycodeMetadata.tenant_id || "", studycodeMetadata.dashboard_plan_id || "", amount, paymentMethod, session.id, paymentIntentId, subscriptionId, status, JSON.stringify(session)],
+            [studycodeUserId, studycodeMetadata.tenant_id || "", studycodeMetadata.dashboard_plan_id || "", studycodeMetadata.plan_id || "premium", amount, paymentMethod, session.id, paymentIntentId, subscriptionId, status, JSON.stringify(session)],
           );
           if (succeeded && studycodeMetadata.dashboard_plan_id) {
             await pool.query("UPDATE studycode_users SET plan_id = $1, updated_at = NOW() WHERE id = $2", [studycodeMetadata.dashboard_plan_id, studycodeUserId]);
