@@ -177,7 +177,7 @@ export default function BillingSubscriptionsView({ token, onError, onOpenStudyCo
 
       {!items.length && <div className="empty-card"><h3>Nenhuma assinatura encontrada.</h3><p>Crie a primeira assinatura vinculando um cliente a um plano.</p><button className="button-primary" onClick={openCreate}>Nova assinatura</button></div>}
 
-      {selected?.mode === "choose" && <div className="billing-drawer">
+      {selected?.mode === "choose" && <div className="billing-drawer billing-product-chooser">
         <div className="section-heading"><div><span className="eyebrow">NOVA ASSINATURA</span><h2>Escolha o produto</h2><p>O fluxo de empresas é do MesaManda; assinaturas de alunos pertencem ao StudyCode.</p></div><button className="button-quiet" onClick={() => setSelected(null)}>Fechar</button></div>
         <div className="quick-actions">
           <button className="button-primary" onClick={startMesaMandaCreate}>MesaManda · empresa</button>
