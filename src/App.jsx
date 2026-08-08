@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 import { useEffect, useMemo, useState } from "react";
 import "./workspace.css";
 import StudyCodeContentEditor from "./StudyCodeContentEditor";
@@ -8,330 +9,4338 @@ import AuditLogView from "./AuditLogViewProfessional";
 import SubscriptionsView from "./BillingSubscriptionsView";
 import FinancialView from "./FinancialPaymentsView";
 import {
-  alterarStatusPlano, alterarStatusTenant, alterarStatusUnidade, atualizarPlano,
-  atualizarProduto, atualizarTenant, criarPlano, criarProduto,
-  criarTenant, criarUnidade, excluirProduto, excluirTenant, excluirUnidade,
-  atribuirPlanoTenant, atualizarCobrancaTenant, listarPlanos, listarProdutos, listarTenants, listarUnidades, loginAdmin,
-  atualizarStudyCodeFeedback, detalharStudyCodeAluno, detalharStudyCodeConteudo, listarStudyCodeAlunos,
-  criarStudyCodeAula, criarStudyCodeModulo, criarStudyCodeTrilha,
-  atualizarStudyCodeAula, atualizarStudyCodeDesafio, atualizarStudyCodeModulo, atualizarStudyCodeTrilha,
-  listarStudyCodeAnalytics, listarStudyCodeComunidade, listarStudyCodeConteudo,
-  listarStudyCodeEconomia, listarStudyCodeIA, moderarStudyCodePost,
-  listarControlTower, listarFinanceiro, listarAssinaturas, listarAdministradores, atualizarAdministrador,
+  alterarStatusPlano,
+  alterarStatusTenant,
+  alterarStatusUnidade,
+  atualizarPlano,
+  atualizarProduto,
+  atualizarTenant,
+  criarPlano,
+  criarProduto,
+  criarTenant,
+  criarUnidade,
+  excluirProduto,
+  excluirTenant,
+  excluirUnidade,
+  atribuirPlanoTenant,
+  atualizarCobrancaTenant,
+  listarPlanos,
+  listarProdutos,
+  listarTenants,
+  listarUnidades,
+  loginAdmin,
+  atualizarStudyCodeFeedback,
+  detalharStudyCodeAluno,
+  detalharStudyCodeConteudo,
+  listarStudyCodeAlunos,
+  criarStudyCodeAula,
+  criarStudyCodeModulo,
+  criarStudyCodeTrilha,
+  atualizarStudyCodeAula,
+  atualizarStudyCodeDesafio,
+  atualizarStudyCodeModulo,
+  atualizarStudyCodeTrilha,
+  listarStudyCodeAnalytics,
+  listarStudyCodeComunidade,
+  listarStudyCodeConteudo,
+  listarStudyCodeEconomia,
+  listarStudyCodeIA,
+  moderarStudyCodePost,
+  listarControlTower,
+  listarFinanceiro,
+  listarAssinaturas,
+  listarAdministradores,
+  atualizarAdministrador,
 } from "./api";
 
-const menu = [["visao", "Central de controle"], ["analytics", "Analytics executivo"], ["financeiro", "Financeiro"], ["assinaturas", "Assinaturas"], ["alunos", "Alunos"], ["projetos", "Projetos"], ["tenants", "Tenants Tauri"], ["permissoes", "Permissões"], ["auditoria", "Auditoria"]];
+const menu = [
+  ["visao", "Central de controle"],
+  ["analytics", "Analytics executivo"],
+  ["financeiro", "Financeiro"],
+  ["assinaturas", "Assinaturas"],
+  ["alunos", "Alunos"],
+  ["projetos", "Projetos"],
+  ["tenants", "Tenants Tauri"],
+  ["permissoes", "Permissões"],
+  ["auditoria", "Auditoria"],
+];
 const TECHNOLOGIES = {
-  react: { label: "Site ou aplicativo web", tool: "React", type: "web_app", platforms: ["web"] },
-  react_native: { label: "Aplicativo Android e iOS", tool: "React Native", type: "mobile_app", platforms: ["android", "ios"] },
-  android_studio: { label: "Aplicativo Android", tool: "Android Studio", type: "mobile_app", platforms: ["android"] },
-  xcode: { label: "Aplicativo iOS", tool: "Xcode", type: "mobile_app", platforms: ["ios"] },
-  tauri: { label: "Sistema desktop", tool: "Tauri", type: "system", platforms: ["desktop"] },
-  other: { label: "Outro projeto", tool: "Outra tecnologia", type: "service", platforms: ["web"] },
+  react: {
+    label: "Site ou aplicativo web",
+    tool: "React",
+    type: "web_app",
+    platforms: ["web"],
+  },
+  react_native: {
+    label: "Aplicativo Android e iOS",
+    tool: "React Native",
+    type: "mobile_app",
+    platforms: ["android", "ios"],
+  },
+  android_studio: {
+    label: "Aplicativo Android",
+    tool: "Android Studio",
+    type: "mobile_app",
+    platforms: ["android"],
+  },
+  xcode: {
+    label: "Aplicativo iOS",
+    tool: "Xcode",
+    type: "mobile_app",
+    platforms: ["ios"],
+  },
+  tauri: {
+    label: "Sistema desktop",
+    tool: "Tauri",
+    type: "system",
+    platforms: ["desktop"],
+  },
+  other: {
+    label: "Outro projeto",
+    tool: "Outra tecnologia",
+    type: "service",
+    platforms: ["web"],
+  },
 };
-const STATUS_LABELS = { development: "Em desenvolvimento", available: "Disponível", planned: "Planejado", archived: "Arquivado" };
-const PLATFORM_LABELS = { web: "Web", desktop: "Desktop", android: "Android", ios: "iOS" };
+const STATUS_LABELS = {
+  development: "Em desenvolvimento",
+  available: "Disponível",
+  planned: "Planejado",
+  archived: "Arquivado",
+};
+const PLATFORM_LABELS = {
+  web: "Web",
+  desktop: "Desktop",
+  android: "Android",
+  ios: "iOS",
+};
 
-function readFeatures(value) { if (value && typeof value === "object") return value; try { return JSON.parse(value || "{}"); } catch { return {}; } }
-function money(value) { return Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
-function downloadCsv(filename, headers, rows) { const escape = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`; const csv = [headers, ...rows].map((row) => row.map(escape).join(";")).join("\n"); const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" })); link.download = filename; link.click(); URL.revokeObjectURL(link.href); }
+function readFeatures(value) {
+  if (value && typeof value === "object") return value;
+  try {
+    return JSON.parse(value || "{}");
+  } catch {
+    return {};
+  }
+}
+function money(value) {
+  return Number(value || 0).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+function downloadCsv(filename, headers, rows) {
+  const escape = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+  const csv = [headers, ...rows]
+    .map((row) => row.map(escape).join(";"))
+    .join("\n");
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(
+    new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }),
+  );
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
 function inferredTechnology(project) {
-  if (project.technology && TECHNOLOGIES[project.technology]) return project.technology;
-  if (project.tenant_enabled || project.platforms?.includes("desktop")) return "tauri";
-  if (project.platforms?.includes("android") || project.platforms?.includes("ios")) return "react_native";
+  if (project.technology && TECHNOLOGIES[project.technology])
+    return project.technology;
+  if (project.tenant_enabled || project.platforms?.includes("desktop"))
+    return "tauri";
+  if (
+    project.platforms?.includes("android") ||
+    project.platforms?.includes("ios")
+  )
+    return "react_native";
   return "react";
 }
-function selectedTechnologies(project) { return Array.isArray(project?.technologies) && project.technologies.length ? project.technologies : [inferredTechnology(project)]; }
-function projectMeta(project) { return TECHNOLOGIES[inferredTechnology(project)] || TECHNOLOGIES.other; }
-function isTenantProject(project) { return selectedTechnologies(project).includes("tauri") && Boolean(project.tenant_enabled); }
+function selectedTechnologies(project) {
+  return Array.isArray(project?.technologies) && project.technologies.length
+    ? project.technologies
+    : [inferredTechnology(project)];
+}
+function projectMeta(project) {
+  return TECHNOLOGIES[inferredTechnology(project)] || TECHNOLOGIES.other;
+}
+function isTenantProject(project) {
+  return (
+    selectedTechnologies(project).includes("tauri") &&
+    Boolean(project.tenant_enabled)
+  );
+}
 
 function Login({ onLogin }) {
-  const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [error, setError] = useState(""); const [loading, setLoading] = useState(false);
-  async function submit(event) { event.preventDefault(); setLoading(true); setError(""); try { onLogin(await loginAdmin(email, password)); } catch (err) { setError(err.message); } finally { setLoading(false); } }
-  return <main className="login-shell"><section className="login-card"><div className="login-brand"><span className="brand-mark">VM</span><div><strong>VM Nexus</strong><small>Central administrativa</small></div></div><span className="eyebrow">ACESSO PRIVADO</span><h1>Projetos bem organizados.</h1><p>Acesse a central interna da VM Nexus Digital.</p><form onSubmit={submit}><label>E-mail<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /></label><label>Senha<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>{error && <div className="login-error">{error}</div>}<button disabled={loading}>{loading ? "Entrando..." : "Entrar"}</button></form></section></main>;
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  async function submit(event) {
+    event.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      onLogin(await loginAdmin(email, password));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+  return (
+    <main className="login-shell">
+      <section className="login-card">
+        <div className="login-brand">
+          <span className="brand-mark">VM</span>
+          <div>
+            <strong>VM Nexus</strong>
+            <small>Central administrativa</small>
+          </div>
+        </div>
+        <span className="eyebrow">ACESSO PRIVADO</span>
+        <h1>Projetos bem organizados.</h1>
+        <p>Acesse a central interna da VM Nexus Digital.</p>
+        <form onSubmit={submit}>
+          <label>
+            E-mail
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+            />
+          </label>
+          <label>
+            Senha
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+            />
+          </label>
+          {error && <div className="login-error">{error}</div>}
+          <button disabled={loading}>
+            {loading ? "Entrando..." : "Entrar"}
+          </button>
+        </form>
+      </section>
+    </main>
+  );
 }
 
 function ProjectForm({ project, onSave, onCancel, saving, error }) {
-  const editing = Boolean(project?.id); const [technologies, setTechnologies] = useState(project ? selectedTechnologies(project) : ["react"]); const [platforms, setPlatforms] = useState(project?.platforms?.length ? project.platforms : ["web"]);
-  function toggleTechnology(key) { setTechnologies((current) => current.includes(key) ? current.filter((item) => item !== key) : current.length < 3 ? [...current, key] : current); }
-  function togglePlatform(key) { setPlatforms((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]); }
-  return <form className="project-editor" onSubmit={(event) => onSave(event, project, technologies)}>
-    <div className="editor-heading"><div><span className="eyebrow">{editing ? "CONFIGURAÇÕES" : "NOVO PROJETO"}</span><h2>{editing ? `Editar ${project.name}` : "Comece um projeto"}</h2><p>Escolha até três tecnologias e as plataformas que este projeto terá.</p></div>{onCancel && <button type="button" className="button-quiet" onClick={onCancel}>Cancelar</button>}</div>
-    <div><strong className="field-title">Tecnologias <small>(até 3)</small></strong><div className="technology-grid">{Object.entries(TECHNOLOGIES).filter(([key]) => key !== "other").map(([key, item]) => <label key={key} className={`technology-option ${technologies.includes(key) ? "selected" : ""}`}><input type="checkbox" name="technologies" value={key} checked={technologies.includes(key)} onChange={() => toggleTechnology(key)} /><strong>{item.tool}</strong><small>{item.label}</small></label>)}</div></div>
-    <div><strong className="field-title">Plataformas</strong><div className="platform-picker">{Object.entries(PLATFORM_LABELS).map(([key, label]) => <label key={key}><input type="checkbox" name="platforms" value={key} checked={platforms.includes(key)} onChange={() => togglePlatform(key)} />{label}</label>)}</div></div>
-    <div className="editor-grid"><label>Nome do projeto<input name="name" defaultValue={project?.name || ""} placeholder="Ex.: MesaManda" required /></label>{!editing && <label>Identificador<input name="slug" defaultValue={project?.slug || ""} placeholder="mesa-manda" pattern="[a-z0-9-]+" required /></label>}<label>Categoria<input name="category" defaultValue={project?.category || ""} placeholder="Ex.: Gestão de restaurantes" /></label><label>Status<select name="status" defaultValue={project?.status || "planned"}>{Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div>
-    <label>Descrição<textarea name="description" defaultValue={project?.description || ""} rows="4" placeholder="Explique rapidamente o que este projeto entrega." /></label>
-    {technologies.includes("tauri") && <label className="tenant-toggle"><input name="tenantEnabled" type="checkbox" defaultChecked={Boolean(project?.tenant_enabled)} /><span><strong>Este é um sistema multi-tenant</strong><small>Ativa a área de Empresas e Unidades somente para este sistema Tauri.</small></span></label>}
-    {error && <div className="login-error">{error}</div>}<button className="button-primary" disabled={saving}>{saving ? "Salvando..." : editing ? "Salvar projeto" : "Criar projeto"}</button>
-  </form>;
+  const editing = Boolean(project?.id);
+  const [technologies, setTechnologies] = useState(
+    project ? selectedTechnologies(project) : ["react"],
+  );
+  const [platforms, setPlatforms] = useState(
+    project?.platforms?.length ? project.platforms : ["web"],
+  );
+  function toggleTechnology(key) {
+    setTechnologies((current) =>
+      current.includes(key)
+        ? current.filter((item) => item !== key)
+        : current.length < 3
+          ? [...current, key]
+          : current,
+    );
+  }
+  function togglePlatform(key) {
+    setPlatforms((current) =>
+      current.includes(key)
+        ? current.filter((item) => item !== key)
+        : [...current, key],
+    );
+  }
+  return (
+    <form
+      className="project-editor"
+      onSubmit={(event) => onSave(event, project, technologies)}
+    >
+      <div className="editor-heading">
+        <div>
+          <span className="eyebrow">
+            {editing ? "CONFIGURAÇÕES" : "NOVO PROJETO"}
+          </span>
+          <h2>{editing ? `Editar ${project.name}` : "Comece um projeto"}</h2>
+          <p>
+            Escolha até três tecnologias e as plataformas que este projeto terá.
+          </p>
+        </div>
+        {onCancel && (
+          <button type="button" className="button-quiet" onClick={onCancel}>
+            Cancelar
+          </button>
+        )}
+      </div>
+      <div>
+        <strong className="field-title">
+          Tecnologias <small>(até 3)</small>
+        </strong>
+        <div className="technology-grid">
+          {Object.entries(TECHNOLOGIES)
+            .filter(([key]) => key !== "other")
+            .map(([key, item]) => (
+              <label
+                key={key}
+                className={`technology-option ${technologies.includes(key) ? "selected" : ""}`}
+              >
+                <input
+                  type="checkbox"
+                  name="technologies"
+                  value={key}
+                  checked={technologies.includes(key)}
+                  onChange={() => toggleTechnology(key)}
+                />
+                <strong>{item.tool}</strong>
+                <small>{item.label}</small>
+              </label>
+            ))}
+        </div>
+      </div>
+      <div>
+        <strong className="field-title">Plataformas</strong>
+        <div className="platform-picker">
+          {Object.entries(PLATFORM_LABELS).map(([key, label]) => (
+            <label key={key}>
+              <input
+                type="checkbox"
+                name="platforms"
+                value={key}
+                checked={platforms.includes(key)}
+                onChange={() => togglePlatform(key)}
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="editor-grid">
+        <label>
+          Nome do projeto
+          <input
+            name="name"
+            defaultValue={project?.name || ""}
+            placeholder="Ex.: MesaManda"
+            required
+          />
+        </label>
+        {!editing && (
+          <label>
+            Identificador
+            <input
+              name="slug"
+              defaultValue={project?.slug || ""}
+              placeholder="mesa-manda"
+              pattern="[a-z0-9-]+"
+              required
+            />
+          </label>
+        )}
+        <label>
+          Categoria
+          <input
+            name="category"
+            defaultValue={project?.category || ""}
+            placeholder="Ex.: Gestão de restaurantes"
+          />
+        </label>
+        <label>
+          Status
+          <select name="status" defaultValue={project?.status || "planned"}>
+            {Object.entries(STATUS_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <label>
+        Descrição
+        <textarea
+          name="description"
+          defaultValue={project?.description || ""}
+          rows="4"
+          placeholder="Explique rapidamente o que este projeto entrega."
+        />
+      </label>
+      {technologies.includes("tauri") && (
+        <label className="tenant-toggle">
+          <input
+            name="tenantEnabled"
+            type="checkbox"
+            defaultChecked={Boolean(project?.tenant_enabled)}
+          />
+          <span>
+            <strong>Este é um sistema multi-tenant</strong>
+            <small>
+              Ativa a área de Empresas e Unidades somente para este sistema
+              Tauri.
+            </small>
+          </span>
+        </label>
+      )}
+      {error && <div className="login-error">{error}</div>}
+      <button className="button-primary" disabled={saving}>
+        {saving ? "Salvando..." : editing ? "Salvar projeto" : "Criar projeto"}
+      </button>
+    </form>
+  );
 }
 
 function ProjectCard({ project, onOpen, onEdit, onDelete }) {
   const meta = projectMeta(project);
-  return <article className="project-card"><div className="project-card-top"><span className="project-symbol">{project.name.slice(0, 2).toUpperCase()}</span><div><span className="eyebrow">{selectedTechnologies(project).map((item) => TECHNOLOGIES[item]?.tool).join(" + ")}</span><h3>{project.name}</h3></div><span className={`status-pill ${project.status}`}>{STATUS_LABELS[project.status] || project.status}</span></div><p>{project.description || "Sem descrição cadastrada."}</p><div className="tag-row">{selectedTechnologies(project).map((item) => <span key={item}>{TECHNOLOGIES[item]?.tool || meta.label}</span>)}{project.platforms?.map((item) => <span key={item}>{PLATFORM_LABELS[item] || item}</span>)}{isTenantProject(project) && <span className="tenant-tag">Multi-tenant</span>}</div><div className="project-card-footer"><small>{project.plans || 0} plano(s) · {isTenantProject(project) ? `${project.tenants || 0} empresa(s)` : "sem tenants"}</small><div><button className="button-quiet" onClick={() => onEdit(project)}>Editar</button><button className="button-primary" onClick={() => onOpen(project)}>Abrir</button></div></div>{project.status === "archived" && <button className="text-danger" onClick={() => onDelete(project)}>Excluir projeto arquivado</button>}</article>;
+  return (
+    <article className="project-card">
+      <div className="project-card-top">
+        <span className="project-symbol">
+          {project.name.slice(0, 2).toUpperCase()}
+        </span>
+        <div>
+          <span className="eyebrow">
+            {selectedTechnologies(project)
+              .map((item) => TECHNOLOGIES[item]?.tool)
+              .join(" + ")}
+          </span>
+          <h3>{project.name}</h3>
+        </div>
+        <span className={`status-pill ${project.status}`}>
+          {STATUS_LABELS[project.status] || project.status}
+        </span>
+      </div>
+      <p>{project.description || "Sem descrição cadastrada."}</p>
+      <div className="tag-row">
+        {selectedTechnologies(project).map((item) => (
+          <span key={item}>{TECHNOLOGIES[item]?.tool || meta.label}</span>
+        ))}
+        {project.platforms?.map((item) => (
+          <span key={item}>{PLATFORM_LABELS[item] || item}</span>
+        ))}
+        {isTenantProject(project) && (
+          <span className="tenant-tag">Multi-tenant</span>
+        )}
+      </div>
+      <div className="project-card-footer">
+        <small>
+          {project.plans || 0} plano(s) ·{" "}
+          {isTenantProject(project)
+            ? `${project.tenants || 0} empresa(s)`
+            : "sem tenants"}
+        </small>
+        <div>
+          <button className="button-quiet" onClick={() => onEdit(project)}>
+            Editar
+          </button>
+          <button className="button-primary" onClick={() => onOpen(project)}>
+            Abrir
+          </button>
+        </div>
+      </div>
+      {project.status === "archived" && (
+        <button className="text-danger" onClick={() => onDelete(project)}>
+          Excluir projeto arquivado
+        </button>
+      )}
+    </article>
+  );
 }
 
 function ProjectsView({ projects, onOpen, onEdit, onDelete }) {
-  return <section className="page-section"><div className="page-heading"><div><span className="eyebrow">PORTFÓLIO VM NEXUS</span><h1>Todos os projetos</h1><p>Sites React, aplicativos Android e sistemas desktop Tauri em um único lugar.</p></div><button className="button-primary" onClick={() => onEdit(null)}>Novo projeto</button></div><div className="project-grid">{projects.map((project) => <ProjectCard key={project.id} project={project} onOpen={onOpen} onEdit={onEdit} onDelete={onDelete} />)}</div>{!projects.length && <div className="empty-card"><h3>Seu portfólio começa aqui.</h3><p>Cadastre o primeiro site, aplicativo ou sistema.</p></div>}</section>;
+  return (
+    <section className="page-section">
+      <div className="page-heading">
+        <div>
+          <span className="eyebrow">PORTFÓLIO VM NEXUS</span>
+          <h1>Todos os projetos</h1>
+          <p>
+            Sites React, aplicativos Android e sistemas desktop Tauri em um
+            único lugar.
+          </p>
+        </div>
+        <button className="button-primary" onClick={() => onEdit(null)}>
+          Novo projeto
+        </button>
+      </div>
+      <div className="project-grid">
+        {projects.map((project) => (
+          <ProjectCard
+            key={project.id}
+            project={project}
+            onOpen={onOpen}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
+        ))}
+      </div>
+      {!projects.length && (
+        <div className="empty-card">
+          <h3>Seu portfólio começa aqui.</h3>
+          <p>Cadastre o primeiro site, aplicativo ou sistema.</p>
+        </div>
+      )}
+    </section>
+  );
 }
 
 function PlanForm({ plan, onSave, onCancel, saving }) {
-  const features = readFeatures(plan?.features); const benefits = Array.isArray(features.benefits) ? features.benefits.join(", ") : "";
-  return <form className="plan-editor" onSubmit={(event) => onSave(event, plan)}><div className="editor-heading"><div><span className="eyebrow">{plan ? "EDITAR PLANO" : "NOVO PLANO"}</span><h2>{plan ? plan.name : "Novo plano"}</h2><p>Defina preço, moedas incluídas e benefícios deste projeto.</p></div><button className="button-quiet" type="button" onClick={onCancel}>Fechar</button></div><div className="editor-grid"><label>Nome<input name="name" defaultValue={plan?.name || ""} placeholder="Ex.: Pro" required /></label><label>Mensalidade (R$)<input name="monthlyPrice" type="number" min="0" step="0.01" defaultValue={plan?.monthly_price || 0} required /></label><label>Moedas incluídas<input name="coins" type="number" min="0" defaultValue={features.coins ?? 0} /><small>Use 0 caso o projeto não trabalhe com moedas.</small></label><label>Ordem de exibição<input name="displayOrder" type="number" min="0" defaultValue={plan?.display_order || 0} /></label></div><label>Descrição<textarea name="description" rows="3" defaultValue={plan?.description || ""} placeholder="Para quem é este plano?" /></label><label>Benefícios<input name="benefits" defaultValue={benefits} placeholder="Ex.: relatórios, suporte prioritário, exportação" /><small>Separe os benefícios por vírgula.</small></label><button className="button-primary" disabled={saving}>{saving ? "Salvando..." : "Salvar plano"}</button></form>;
+  const features = readFeatures(plan?.features);
+  const benefits = Array.isArray(features.benefits)
+    ? features.benefits.join(", ")
+    : "";
+  return (
+    <form className="plan-editor" onSubmit={(event) => onSave(event, plan)}>
+      <div className="editor-heading">
+        <div>
+          <span className="eyebrow">
+            {plan ? "EDITAR PLANO" : "NOVO PLANO"}
+          </span>
+          <h2>{plan ? plan.name : "Novo plano"}</h2>
+          <p>Defina preço, moedas incluídas e benefícios deste projeto.</p>
+        </div>
+        <button className="button-quiet" type="button" onClick={onCancel}>
+          Fechar
+        </button>
+      </div>
+      <div className="editor-grid">
+        <label>
+          Nome
+          <input
+            name="name"
+            defaultValue={plan?.name || ""}
+            placeholder="Ex.: Pro"
+            required
+          />
+        </label>
+        <label>
+          Mensalidade (R$)
+          <input
+            name="monthlyPrice"
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue={plan?.monthly_price || 0}
+            required
+          />
+        </label>
+        <label>
+          Moedas incluídas
+          <input
+            name="coins"
+            type="number"
+            min="0"
+            defaultValue={features.coins ?? 0}
+          />
+          <small>Use 0 caso o projeto não trabalhe com moedas.</small>
+        </label>
+        <label>
+          Ordem de exibição
+          <input
+            name="displayOrder"
+            type="number"
+            min="0"
+            defaultValue={plan?.display_order || 0}
+          />
+        </label>
+      </div>
+      <label>
+        Descrição
+        <textarea
+          name="description"
+          rows="3"
+          defaultValue={plan?.description || ""}
+          placeholder="Para quem é este plano?"
+        />
+      </label>
+      <label>
+        Benefícios
+        <input
+          name="benefits"
+          defaultValue={benefits}
+          placeholder="Ex.: relatórios, suporte prioritário, exportação"
+        />
+        <small>Separe os benefícios por vírgula.</small>
+      </label>
+      <button className="button-primary" disabled={saving}>
+        {saving ? "Salvando..." : "Salvar plano"}
+      </button>
+    </form>
+  );
 }
 
 function MonetizationView({ project, plans, onSave, onToggle, saving }) {
   const [editing, setEditing] = useState(undefined);
-  return <section className="workspace-panel"><div className="section-heading"><div><span className="eyebrow">MONETIZAÇÃO</span><h2>Planos e moedas</h2><p>Os planos pertencem apenas a {project.name}. Não há assinaturas por cliente nesta área.</p></div><button className="button-primary" onClick={() => setEditing(null)}>Novo plano</button></div>{editing !== undefined && <PlanForm plan={editing} saving={saving} onCancel={() => setEditing(undefined)} onSave={async (event, plan) => { if (await onSave(event, plan)) setEditing(undefined); }} />}<div className="plan-grid">{plans.map((plan) => { const features = readFeatures(plan.features); return <article className="monetization-card" key={plan.id}><div><span className="eyebrow">{plan.active ? "ATIVO" : "PAUSADO"}</span><h3>{plan.name}</h3><p>{plan.description || "Sem descrição cadastrada."}</p></div><strong>{money(plan.monthly_price)}<small>/mês</small></strong><div className="coin-line">◈ {features.coins ?? 0} moedas incluídas</div><ul>{(features.benefits || []).map((benefit) => <li key={benefit}>{benefit}</li>)}</ul><div className="action-row"><button className="button-quiet" onClick={() => setEditing(plan)}>Editar</button><button className="button-quiet" onClick={() => onToggle(plan)}>{plan.active ? "Pausar" : "Ativar"}</button></div></article>; })}</div>{!plans.length && editing === undefined && <div className="empty-card"><h3>Nenhum plano criado.</h3><p>Crie planos quando este projeto tiver uma versão paga ou moedas.</p></div>}</section>;
+  return (
+    <section className="workspace-panel">
+      <div className="section-heading">
+        <div>
+          <span className="eyebrow">MONETIZAÇÃO</span>
+          <h2>Planos e moedas</h2>
+          <p>
+            Os planos pertencem apenas a {project.name}. Não há assinaturas por
+            cliente nesta área.
+          </p>
+        </div>
+        <button className="button-primary" onClick={() => setEditing(null)}>
+          Novo plano
+        </button>
+      </div>
+      {editing !== undefined && (
+        <PlanForm
+          plan={editing}
+          saving={saving}
+          onCancel={() => setEditing(undefined)}
+          onSave={async (event, plan) => {
+            if (await onSave(event, plan)) setEditing(undefined);
+          }}
+        />
+      )}
+      <div className="plan-grid">
+        {plans.map((plan) => {
+          const features = readFeatures(plan.features);
+          return (
+            <article className="monetization-card" key={plan.id}>
+              <div>
+                <span className="eyebrow">
+                  {plan.active ? "ATIVO" : "PAUSADO"}
+                </span>
+                <h3>{plan.name}</h3>
+                <p>{plan.description || "Sem descrição cadastrada."}</p>
+              </div>
+              <strong>
+                {money(plan.monthly_price)}
+                <small>/mês</small>
+              </strong>
+              <div className="coin-line">
+                ◈ {features.coins ?? 0} moedas incluídas
+              </div>
+              <ul>
+                {(features.benefits || []).map((benefit) => (
+                  <li key={benefit}>{benefit}</li>
+                ))}
+              </ul>
+              <div className="action-row">
+                <button
+                  className="button-quiet"
+                  onClick={() => setEditing(plan)}
+                >
+                  Editar
+                </button>
+                <button className="button-quiet" onClick={() => onToggle(plan)}>
+                  {plan.active ? "Pausar" : "Ativar"}
+                </button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      {!plans.length && editing === undefined && (
+        <div className="empty-card">
+          <h3>Nenhum plano criado.</h3>
+          <p>
+            Crie planos quando este projeto tiver uma versão paga ou moedas.
+          </p>
+        </div>
+      )}
+    </section>
+  );
 }
 
 function ProjectManagementPanel({ project, mode }) {
-  const [roadmap, setRoadmap] = useState([{ id: 1, title: "Definir escopo do projeto", status: "Em andamento", priority: "Alta" }, { id: 2, title: "Preparar primeira versão", status: "A fazer", priority: "Média" }]);
-  const [newItem, setNewItem] = useState(""); const [permissions, setPermissions] = useState([{ email: "Administrador VM Nexus", role: "Administrador" }]); const meta = projectMeta(project);
-  if (mode === "future-modules") return <FutureModulesPanel project={project} />;
-  if (mode === "details") return <section className="workspace-panel"><div className="section-heading"><div><span className="eyebrow">DETALHES DO PROJETO</span><h2>{project.name}</h2><p>Informações centrais para encontrar, acompanhar e publicar este produto.</p></div></div><div className="project-detail-grid"><article><small>Tecnologias</small><strong>{selectedTechnologies(project).map((item) => TECHNOLOGIES[item]?.tool).join(" + ")}</strong><span>{meta.label}</span></article><article><small>Plataformas</small><strong>{project.platforms?.map((item) => PLATFORM_LABELS[item]).join(", ") || "Não definidas"}</strong><span>Alvos publicados deste projeto</span></article><article><small>Identificador</small><strong>{project.slug}</strong><span>Categoria: {project.category || "Não informada"}</span></article><article><small>Produção</small><strong>URL não cadastrada</strong><span>Adicione a URL nos deploys</span></article></div></section>;
-  if (mode === "roadmap") return <section className="workspace-panel"><div className="section-heading"><div><span className="eyebrow">ROADMAP</span><h2>Próximas entregas</h2><p>Organize o que será construído, testado e publicado.</p></div></div><form className="roadmap-form" onSubmit={(event) => { event.preventDefault(); if (!newItem.trim()) return; setRoadmap((items) => [...items, { id: Date.now(), title: newItem.trim(), status: "A fazer", priority: "Média" }]); setNewItem(""); }}><input value={newItem} onChange={(event) => setNewItem(event.target.value)} placeholder="Ex.: Criar tela de onboarding" /><button className="button-primary">Adicionar item</button></form><div className="roadmap-list">{roadmap.map((item) => <article key={item.id}><div><strong>{item.title}</strong><small>{item.priority} prioridade</small></div><select value={item.status} onChange={(event) => setRoadmap((items) => items.map((current) => current.id === item.id ? { ...current, status: event.target.value } : current))}><option>A fazer</option><option>Em andamento</option><option>Em teste</option><option>Concluído</option></select></article>)}</div></section>;
-  if (mode === "deploys") return <section className="workspace-panel"><div className="section-heading"><div><span className="eyebrow">DEPLOYS</span><h2>Ambientes e versões</h2><p>Acompanhe o que está em desenvolvimento, homologação e produção.</p></div></div><div className="deploy-grid">{["Desenvolvimento", "Homologação", "Produção"].map((environment) => <article key={environment}><span className="eyebrow">{environment}</span><h3>{environment === "Produção" ? "Render" : "Ainda não configurado"}</h3><p>{environment === "Produção" ? "Deploy automático pela branch main." : "Cadastre uma URL ou serviço quando este ambiente existir."}</p><span className={`status-pill ${environment === "Produção" ? "available" : "planned"}`}>{environment === "Produção" ? "Online" : "Pendente"}</span><button className="button-quiet">Configurar ambiente</button></article>)}</div></section>;
-  if (mode === "templates") return <section className="workspace-panel"><div className="section-heading"><div><span className="eyebrow">TEMPLATES</span><h2>Modelos deste projeto</h2><p>Escolha uma base para acelerar novos sites, aplicativos e sistemas.</p></div><button className="button-primary">Novo template</button></div><div className="content-cards">{["Site React", "Aplicativo React Native", "Aplicativo Android Studio", "Aplicativo iOS com Xcode", "Sistema Tauri"].map((template) => <article className="content-card" key={template}><span className="eyebrow">MODELO</span><h3>{template}</h3><p>Estrutura inicial reutilizável para {project.name}.</p><button className="button-quiet">Editar template</button></article>)}</div></section>;
-  return <section className="workspace-panel"><div className="section-heading"><div><span className="eyebrow">PERMISSÕES</span><h2>Quem pode administrar este projeto</h2><p>Controle o acesso ao código, dados e publicação.</p></div><button className="button-primary" onClick={() => setPermissions((items) => [...items, { email: "Novo usuário", role: "Desenvolvedor" }])}>Adicionar usuário</button></div><div className="permission-list">{permissions.map((permission, index) => <article key={`${permission.email}-${index}`}><div><strong>{permission.email}</strong><small>Acesso ativo ao projeto</small></div><select value={permission.role} onChange={(event) => setPermissions((items) => items.map((current, itemIndex) => itemIndex === index ? { ...current, role: event.target.value } : current))}><option>Administrador</option><option>Desenvolvedor</option><option>Revisor</option><option>Somente leitura</option></select><button className="text-danger" onClick={() => setPermissions((items) => items.filter((_, itemIndex) => itemIndex !== index))}>Remover</button></article>)}</div></section>;
+  const [roadmap, setRoadmap] = useState([
+    {
+      id: 1,
+      title: "Definir escopo do projeto",
+      status: "Em andamento",
+      priority: "Alta",
+    },
+    {
+      id: 2,
+      title: "Preparar primeira versão",
+      status: "A fazer",
+      priority: "Média",
+    },
+  ]);
+  const [newItem, setNewItem] = useState("");
+  const [permissions, setPermissions] = useState([
+    { email: "Administrador VM Nexus", role: "Administrador" },
+  ]);
+  const meta = projectMeta(project);
+  if (mode === "future-modules")
+    return <FutureModulesPanel project={project} />;
+  if (mode === "details")
+    return (
+      <section className="workspace-panel">
+        <div className="section-heading">
+          <div>
+            <span className="eyebrow">DETALHES DO PROJETO</span>
+            <h2>{project.name}</h2>
+            <p>
+              Informações centrais para encontrar, acompanhar e publicar este
+              produto.
+            </p>
+          </div>
+        </div>
+        <div className="project-detail-grid">
+          <article>
+            <small>Tecnologias</small>
+            <strong>
+              {selectedTechnologies(project)
+                .map((item) => TECHNOLOGIES[item]?.tool)
+                .join(" + ")}
+            </strong>
+            <span>{meta.label}</span>
+          </article>
+          <article>
+            <small>Plataformas</small>
+            <strong>
+              {project.platforms
+                ?.map((item) => PLATFORM_LABELS[item])
+                .join(", ") || "Não definidas"}
+            </strong>
+            <span>Alvos publicados deste projeto</span>
+          </article>
+          <article>
+            <small>Identificador</small>
+            <strong>{project.slug}</strong>
+            <span>Categoria: {project.category || "Não informada"}</span>
+          </article>
+          <article>
+            <small>Produção</small>
+            <strong>URL não cadastrada</strong>
+            <span>Adicione a URL nos deploys</span>
+          </article>
+        </div>
+      </section>
+    );
+  if (mode === "roadmap")
+    return (
+      <section className="workspace-panel">
+        <div className="section-heading">
+          <div>
+            <span className="eyebrow">ROADMAP</span>
+            <h2>Próximas entregas</h2>
+            <p>Organize o que será construído, testado e publicado.</p>
+          </div>
+        </div>
+        <form
+          className="roadmap-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!newItem.trim()) return;
+            setRoadmap((items) => [
+              ...items,
+              {
+                id: Date.now(),
+                title: newItem.trim(),
+                status: "A fazer",
+                priority: "Média",
+              },
+            ]);
+            setNewItem("");
+          }}
+        >
+          <input
+            value={newItem}
+            onChange={(event) => setNewItem(event.target.value)}
+            placeholder="Ex.: Criar tela de onboarding"
+          />
+          <button className="button-primary">Adicionar item</button>
+        </form>
+        <div className="roadmap-list">
+          {roadmap.map((item) => (
+            <article key={item.id}>
+              <div>
+                <strong>{item.title}</strong>
+                <small>{item.priority} prioridade</small>
+              </div>
+              <select
+                value={item.status}
+                onChange={(event) =>
+                  setRoadmap((items) =>
+                    items.map((current) =>
+                      current.id === item.id
+                        ? { ...current, status: event.target.value }
+                        : current,
+                    ),
+                  )
+                }
+              >
+                <option>A fazer</option>
+                <option>Em andamento</option>
+                <option>Em teste</option>
+                <option>Concluído</option>
+              </select>
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+  if (mode === "deploys")
+    return (
+      <section className="workspace-panel">
+        <div className="section-heading">
+          <div>
+            <span className="eyebrow">DEPLOYS</span>
+            <h2>Ambientes e versões</h2>
+            <p>
+              Acompanhe o que está em desenvolvimento, homologação e produção.
+            </p>
+          </div>
+        </div>
+        <div className="deploy-grid">
+          {["Desenvolvimento", "Homologação", "Produção"].map((environment) => (
+            <article key={environment}>
+              <span className="eyebrow">{environment}</span>
+              <h3>
+                {environment === "Produção"
+                  ? "Render"
+                  : "Ainda não configurado"}
+              </h3>
+              <p>
+                {environment === "Produção"
+                  ? "Deploy automático pela branch main."
+                  : "Cadastre uma URL ou serviço quando este ambiente existir."}
+              </p>
+              <span
+                className={`status-pill ${environment === "Produção" ? "available" : "planned"}`}
+              >
+                {environment === "Produção" ? "Online" : "Pendente"}
+              </span>
+              <button className="button-quiet">Configurar ambiente</button>
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+  if (mode === "templates")
+    return (
+      <section className="workspace-panel">
+        <div className="section-heading">
+          <div>
+            <span className="eyebrow">TEMPLATES</span>
+            <h2>Modelos deste projeto</h2>
+            <p>
+              Escolha uma base para acelerar novos sites, aplicativos e
+              sistemas.
+            </p>
+          </div>
+          <button className="button-primary">Novo template</button>
+        </div>
+        <div className="content-cards">
+          {[
+            "Site React",
+            "Aplicativo React Native",
+            "Aplicativo Android Studio",
+            "Aplicativo iOS com Xcode",
+            "Sistema Tauri",
+          ].map((template) => (
+            <article className="content-card" key={template}>
+              <span className="eyebrow">MODELO</span>
+              <h3>{template}</h3>
+              <p>Estrutura inicial reutilizável para {project.name}.</p>
+              <button className="button-quiet">Editar template</button>
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+  return (
+    <section className="workspace-panel">
+      <div className="section-heading">
+        <div>
+          <span className="eyebrow">PERMISSÕES</span>
+          <h2>Quem pode administrar este projeto</h2>
+          <p>Controle o acesso ao código, dados e publicação.</p>
+        </div>
+        <button
+          className="button-primary"
+          onClick={() =>
+            setPermissions((items) => [
+              ...items,
+              { email: "Novo usuário", role: "Desenvolvedor" },
+            ])
+          }
+        >
+          Adicionar usuário
+        </button>
+      </div>
+      <div className="permission-list">
+        {permissions.map((permission, index) => (
+          <article key={`${permission.email}-${index}`}>
+            <div>
+              <strong>{permission.email}</strong>
+              <small>Acesso ativo ao projeto</small>
+            </div>
+            <select
+              value={permission.role}
+              onChange={(event) =>
+                setPermissions((items) =>
+                  items.map((current, itemIndex) =>
+                    itemIndex === index
+                      ? { ...current, role: event.target.value }
+                      : current,
+                  ),
+                )
+              }
+            >
+              <option>Administrador</option>
+              <option>Desenvolvedor</option>
+              <option>Revisor</option>
+              <option>Somente leitura</option>
+            </select>
+            <button
+              className="text-danger"
+              onClick={() =>
+                setPermissions((items) =>
+                  items.filter((_, itemIndex) => itemIndex !== index),
+                )
+              }
+            >
+              Remover
+            </button>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function FutureModulesPanel({ project }) {
   const modules = [
-    { name: "Finanças", description: "Estrutura para produtos financeiros e controle de caixa.", items: ["Contas", "Transações", "Relatórios", "IA financeira"] },
-    { name: "Jogos", description: "Base para experiências com progressão e competição.", items: ["Fases", "Pontuação", "Partidas", "Ranking"] },
-    { name: "Quiz", description: "Estrutura para avaliações, desafios e aprendizagem.", items: ["Perguntas", "Respostas", "Ranking", "Histórico"] },
+    {
+      name: "Finanças",
+      description: "Estrutura para produtos financeiros e controle de caixa.",
+      items: ["Contas", "Transações", "Relatórios", "IA financeira"],
+    },
+    {
+      name: "Jogos",
+      description: "Base para experiências com progressão e competição.",
+      items: ["Fases", "Pontuação", "Partidas", "Ranking"],
+    },
+    {
+      name: "Quiz",
+      description: "Estrutura para avaliações, desafios e aprendizagem.",
+      items: ["Perguntas", "Respostas", "Ranking", "Histórico"],
+    },
   ];
-  return <section className="workspace-panel"><div className="section-heading"><div><span className="eyebrow">MÓDULOS FUTUROS</span><h2>Capacidades de {project.name}</h2><p>Ative módulos conforme o segmento do projeto. Eles são apenas uma base de planejamento e não alteram o produto automaticamente.</p></div></div><div className="content-cards">{modules.map((module) => <article className="content-card" key={module.name}><span className="eyebrow">SEGMENTO</span><h3>{module.name}</h3><p>{module.description}</p><ul>{module.items.map((item) => <li key={item}>{item}</li>)}</ul><button className="button-quiet" type="button">Preparar módulo</button></article>)}</div></section>;
+  return (
+    <section className="workspace-panel">
+      <div className="section-heading">
+        <div>
+          <span className="eyebrow">MÓDULOS FUTUROS</span>
+          <h2>Capacidades de {project.name}</h2>
+          <p>
+            Ative módulos conforme o segmento do projeto. Eles são apenas uma
+            base de planejamento e não alteram o produto automaticamente.
+          </p>
+        </div>
+      </div>
+      <div className="content-cards">
+        {modules.map((module) => (
+          <article className="content-card" key={module.name}>
+            <span className="eyebrow">SEGMENTO</span>
+            <h3>{module.name}</h3>
+            <p>{module.description}</p>
+            <ul>
+              {module.items.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+            <button className="button-quiet" type="button">
+              Preparar módulo
+            </button>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
 }
 
-function TenantWorkspace({ project, tenants, selectedTenant, units, onCreate, onUpdate, onSelect, onUnitCreate, onUnitToggle, onTenantToggle, onTenantDelete, onUnitDelete, saving, error }) {
-  const [formOpen, setFormOpen] = useState(false); const [editing, setEditing] = useState(null);
-  return <section className="workspace-panel"><div className="section-heading"><div><span className="eyebrow">MULTI-TENANT TAURI</span><h2>Empresas e unidades</h2><p>Esta área é exclusiva do sistema {project.name}. Cada empresa tem dados isolados.</p></div><button className="button-primary" onClick={() => setFormOpen(true)}>Nova empresa</button></div>{(formOpen || editing) && <form className="compact-form" onSubmit={async (event) => { const ok = await (editing ? onUpdate(event, editing) : onCreate(event)); if (ok) { setFormOpen(false); setEditing(null); } }}><div className="editor-grid"><label>Nome da empresa<input name="name" defaultValue={editing?.name || ""} required /></label><label>Identificador<input name="slug" defaultValue={editing?.slug || ""} pattern="[a-z0-9-]+" required /></label></div>{error && <div className="login-error">{error}</div>}<div className="action-row"><button className="button-primary" disabled={saving}>{saving ? "Salvando..." : "Salvar empresa"}</button><button className="button-quiet" type="button" onClick={() => { setFormOpen(false); setEditing(null); }}>Cancelar</button></div></form>}<div className="tenant-list">{tenants.map((tenant) => <article key={tenant.id} className={`tenant-item ${selectedTenant?.id === tenant.id ? "selected" : ""}`}><div><span className="project-symbol">{tenant.name.slice(0, 2).toUpperCase()}</span><span><strong>{tenant.name}</strong><small>{tenant.slug} · {tenant.units || 0} unidade(s)</small></span></div><div className="action-row"><button className="button-quiet" onClick={() => onSelect(tenant)}>Unidades</button><button className="button-quiet" onClick={() => setEditing(tenant)}>Editar</button><button className="button-quiet" onClick={() => onTenantToggle(tenant)}>{tenant.status === "suspended" ? "Ativar" : "Pausar"}</button><button className="text-danger" onClick={() => onTenantDelete(tenant)}>Excluir</button></div></article>)}</div>{!tenants.length && <div className="empty-card"><h3>Nenhuma empresa criada.</h3><p>Cadastre uma empresa apenas quando ela precisar de um ambiente isolado no sistema.</p></div>}{selectedTenant && <section className="units-section"><div className="section-heading"><div><span className="eyebrow">UNIDADES</span><h2>{selectedTenant.name}</h2></div></div><div className="units-grid">{units.map((unit) => <article className="unit-card" key={unit.id}><strong>{unit.name}</strong><small>{unit.slug} · {unit.city || "Cidade não informada"}{unit.state ? `/${unit.state}` : ""}</small><div className="action-row"><button className="button-quiet" onClick={() => onUnitToggle(unit)}>{unit.active ? "Desativar" : "Ativar"}</button><button className="text-danger" onClick={() => onUnitDelete(unit)}>Excluir</button></div></article>)}</div><form className="compact-form" onSubmit={onUnitCreate}><h3>Adicionar unidade</h3><div className="editor-grid"><label>Nome<input name="name" required /></label><label>Identificador<input name="slug" pattern="[a-z0-9-]+" required /></label><label>Cidade<input name="city" /></label><label>UF<input name="state" maxLength="2" /></label></div><button className="button-primary" disabled={saving}>{saving ? "Salvando..." : "Adicionar unidade"}</button></form></section>}</section>;
+function TenantWorkspace({
+  project,
+  tenants,
+  selectedTenant,
+  units,
+  onCreate,
+  onUpdate,
+  onSelect,
+  onUnitCreate,
+  onUnitToggle,
+  onTenantToggle,
+  onTenantDelete,
+  onUnitDelete,
+  saving,
+  error,
+}) {
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  return (
+    <section className="workspace-panel">
+      <div className="section-heading">
+        <div>
+          <span className="eyebrow">MULTI-TENANT TAURI</span>
+          <h2>Empresas e unidades</h2>
+          <p>
+            Esta área é exclusiva do sistema {project.name}. Cada empresa tem
+            dados isolados.
+          </p>
+        </div>
+        <button className="button-primary" onClick={() => setFormOpen(true)}>
+          Nova empresa
+        </button>
+      </div>
+      {(formOpen || editing) && (
+        <form
+          className="compact-form"
+          onSubmit={async (event) => {
+            const ok = await (editing
+              ? onUpdate(event, editing)
+              : onCreate(event));
+            if (ok) {
+              setFormOpen(false);
+              setEditing(null);
+            }
+          }}
+        >
+          <div className="editor-grid">
+            <label>
+              Nome da empresa
+              <input name="name" defaultValue={editing?.name || ""} required />
+            </label>
+            <label>
+              Identificador
+              <input
+                name="slug"
+                defaultValue={editing?.slug || ""}
+                pattern="[a-z0-9-]+"
+                required
+              />
+            </label>
+          </div>
+          {error && <div className="login-error">{error}</div>}
+          <div className="action-row">
+            <button className="button-primary" disabled={saving}>
+              {saving ? "Salvando..." : "Salvar empresa"}
+            </button>
+            <button
+              className="button-quiet"
+              type="button"
+              onClick={() => {
+                setFormOpen(false);
+                setEditing(null);
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+      <div className="tenant-list">
+        {tenants.map((tenant) => (
+          <article
+            key={tenant.id}
+            className={`tenant-item ${selectedTenant?.id === tenant.id ? "selected" : ""}`}
+          >
+            <div>
+              <span className="project-symbol">
+                {tenant.name.slice(0, 2).toUpperCase()}
+              </span>
+              <span>
+                <strong>{tenant.name}</strong>
+                <small>
+                  {tenant.slug} · {tenant.units || 0} unidade(s)
+                </small>
+              </span>
+            </div>
+            <div className="action-row">
+              <button className="button-quiet" onClick={() => onSelect(tenant)}>
+                Unidades
+              </button>
+              <button
+                className="button-quiet"
+                onClick={() => setEditing(tenant)}
+              >
+                Editar
+              </button>
+              <button
+                className="button-quiet"
+                onClick={() => onTenantToggle(tenant)}
+              >
+                {tenant.status === "suspended" ? "Ativar" : "Pausar"}
+              </button>
+              <button
+                className="text-danger"
+                onClick={() => onTenantDelete(tenant)}
+              >
+                Excluir
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+      {!tenants.length && (
+        <div className="empty-card">
+          <h3>Nenhuma empresa criada.</h3>
+          <p>
+            Cadastre uma empresa apenas quando ela precisar de um ambiente
+            isolado no sistema.
+          </p>
+        </div>
+      )}
+      {selectedTenant && (
+        <section className="units-section">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">UNIDADES</span>
+              <h2>{selectedTenant.name}</h2>
+            </div>
+          </div>
+          <div className="units-grid">
+            {units.map((unit) => (
+              <article className="unit-card" key={unit.id}>
+                <strong>{unit.name}</strong>
+                <small>
+                  {unit.slug} · {unit.city || "Cidade não informada"}
+                  {unit.state ? `/${unit.state}` : ""}
+                </small>
+                <div className="action-row">
+                  <button
+                    className="button-quiet"
+                    onClick={() => onUnitToggle(unit)}
+                  >
+                    {unit.active ? "Desativar" : "Ativar"}
+                  </button>
+                  <button
+                    className="text-danger"
+                    onClick={() => onUnitDelete(unit)}
+                  >
+                    Excluir
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+          <form className="compact-form" onSubmit={onUnitCreate}>
+            <h3>Adicionar unidade</h3>
+            <div className="editor-grid">
+              <label>
+                Nome
+                <input name="name" required />
+              </label>
+              <label>
+                Identificador
+                <input name="slug" pattern="[a-z0-9-]+" required />
+              </label>
+              <label>
+                Cidade
+                <input name="city" />
+              </label>
+              <label>
+                UF
+                <input name="state" maxLength="2" />
+              </label>
+            </div>
+            <button className="button-primary" disabled={saving}>
+              {saving ? "Salvando..." : "Adicionar unidade"}
+            </button>
+          </form>
+        </section>
+      )}
+    </section>
+  );
 }
 
-function ProjectWorkspace({ project, plans, tenants, selectedTenant, units, onBack, onProjectSave, onPlansSave, onPlanToggle, onTenant, saving, error }) {
-  const [tab, setTab] = useState("overview"); const meta = projectMeta(project); const hasTenants = isTenantProject(project);
-  if (project.slug === "studycode") return <StudyCodeWorkspace project={project} onBack={onBack} />;
-  const tabs = [["overview", "Resumo"], ["details", "Detalhes"], ["roadmap", "Roadmap"], ["deploys", "Deploys"], ["templates", "Templates"], ["future-modules", "Módulos futuros"], ["permissions", "Permissões"], ["settings", "Configurações"], ["plans", "Monetização"], ...(hasTenants ? [["tenants", "Empresas e unidades"]] : [])];
-  if (["details", "roadmap", "deploys", "templates", "future-modules", "permissions"].includes(tab)) return <section className="project-workspace"><button className="back-link" onClick={onBack}>← Todos os projetos</button><div className="project-workspace-head"><div><span className="eyebrow">{meta.tool.toUpperCase()}</span><h1>{project.name}</h1><p>{project.description || "Sem descrição cadastrada."}</p></div><span className={`status-pill ${project.status}`}>{STATUS_LABELS[project.status]}</span></div><nav className="workspace-tabs">{tabs.map(([id, label]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>{label}</button>)}</nav><ProjectManagementPanel project={project} mode={tab} /></section>;
-  return <section className="project-workspace"><button className="back-link" onClick={onBack}>← Todos os projetos</button><div className="project-workspace-head"><div><span className="eyebrow">{meta.tool.toUpperCase()}</span><h1>{project.name}</h1><p>{project.description || "Sem descrição cadastrada."}</p></div><span className={`status-pill ${project.status}`}>{STATUS_LABELS[project.status]}</span></div><nav className="workspace-tabs">{tabs.map(([id, label]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>{label}</button>)}</nav>{tab === "overview" && <section className="workspace-panel"><div className="overview-grid"><article><small>Tipo</small><strong>{meta.label}</strong><span>{meta.tool}</span></article><article><small>Plataforma</small><strong>{project.platforms?.map((item) => PLATFORM_LABELS[item]).join(", ")}</strong><span>Definida pela tecnologia</span></article><article><small>Monetização</small><strong>{plans.length} plano(s)</strong><span>Preço, moedas e benefícios</span></article>{hasTenants && <article><small>Multi-tenant</small><strong>{project.tenants || 0} empresa(s)</strong><span>Ambientes isolados no Tauri</span></article>}</div><div className="quick-actions"><button className="button-primary" onClick={() => setTab("settings")}>Editar projeto</button><button className="button-quiet" onClick={() => setTab("plans")}>Gerenciar planos</button>{hasTenants && <button className="button-quiet" onClick={() => setTab("tenants")}>Gerenciar empresas</button>}</div></section>}{tab === "settings" && <ProjectForm project={project} onSave={onProjectSave} saving={saving} error={error} />}{tab === "plans" && <MonetizationView project={project} plans={plans} onSave={onPlansSave} onToggle={onPlanToggle} saving={saving} />}{tab === "tenants" && hasTenants && <TenantWorkspace project={project} tenants={tenants} selectedTenant={selectedTenant} units={units} onCreate={onTenant.create} onUpdate={onTenant.update} onSelect={onTenant.select} onUnitCreate={onTenant.createUnit} onUnitToggle={onTenant.toggleUnit} onTenantToggle={onTenant.toggle} onTenantDelete={onTenant.remove} onUnitDelete={onTenant.removeUnit} saving={saving} error={error} />}</section>;
+function ProjectWorkspace({
+  project,
+  plans,
+  tenants,
+  selectedTenant,
+  units,
+  onBack,
+  onProjectSave,
+  onPlansSave,
+  onPlanToggle,
+  onTenant,
+  saving,
+  error,
+}) {
+  const [tab, setTab] = useState("overview");
+  const meta = projectMeta(project);
+  const hasTenants = isTenantProject(project);
+  if (project.slug === "studycode")
+    return <StudyCodeWorkspace project={project} onBack={onBack} />;
+  const tabs = [
+    ["overview", "Resumo"],
+    ["details", "Detalhes"],
+    ["roadmap", "Roadmap"],
+    ["deploys", "Deploys"],
+    ["templates", "Templates"],
+    ["future-modules", "Módulos futuros"],
+    ["permissions", "Permissões"],
+    ["settings", "Configurações"],
+    ["plans", "Monetização"],
+    ...(hasTenants ? [["tenants", "Empresas e unidades"]] : []),
+  ];
+  if (
+    [
+      "details",
+      "roadmap",
+      "deploys",
+      "templates",
+      "future-modules",
+      "permissions",
+    ].includes(tab)
+  )
+    return (
+      <section className="project-workspace">
+        <button className="back-link" onClick={onBack}>
+          ← Todos os projetos
+        </button>
+        <div className="project-workspace-head">
+          <div>
+            <span className="eyebrow">{meta.tool.toUpperCase()}</span>
+            <h1>{project.name}</h1>
+            <p>{project.description || "Sem descrição cadastrada."}</p>
+          </div>
+          <span className={`status-pill ${project.status}`}>
+            {STATUS_LABELS[project.status]}
+          </span>
+        </div>
+        <nav className="workspace-tabs">
+          {tabs.map(([id, label]) => (
+            <button
+              key={id}
+              className={tab === id ? "active" : ""}
+              onClick={() => setTab(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+        <ProjectManagementPanel project={project} mode={tab} />
+      </section>
+    );
+  return (
+    <section className="project-workspace">
+      <button className="back-link" onClick={onBack}>
+        ← Todos os projetos
+      </button>
+      <div className="project-workspace-head">
+        <div>
+          <span className="eyebrow">{meta.tool.toUpperCase()}</span>
+          <h1>{project.name}</h1>
+          <p>{project.description || "Sem descrição cadastrada."}</p>
+        </div>
+        <span className={`status-pill ${project.status}`}>
+          {STATUS_LABELS[project.status]}
+        </span>
+      </div>
+      <nav className="workspace-tabs">
+        {tabs.map(([id, label]) => (
+          <button
+            key={id}
+            className={tab === id ? "active" : ""}
+            onClick={() => setTab(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+      {tab === "overview" && (
+        <section className="workspace-panel">
+          <div className="overview-grid">
+            <article>
+              <small>Tipo</small>
+              <strong>{meta.label}</strong>
+              <span>{meta.tool}</span>
+            </article>
+            <article>
+              <small>Plataforma</small>
+              <strong>
+                {project.platforms
+                  ?.map((item) => PLATFORM_LABELS[item])
+                  .join(", ")}
+              </strong>
+              <span>Definida pela tecnologia</span>
+            </article>
+            <article>
+              <small>Monetização</small>
+              <strong>{plans.length} plano(s)</strong>
+              <span>Preço, moedas e benefícios</span>
+            </article>
+            {hasTenants && (
+              <article>
+                <small>Multi-tenant</small>
+                <strong>{project.tenants || 0} empresa(s)</strong>
+                <span>Ambientes isolados no Tauri</span>
+              </article>
+            )}
+          </div>
+          <div className="quick-actions">
+            <button
+              className="button-primary"
+              onClick={() => setTab("settings")}
+            >
+              Editar projeto
+            </button>
+            <button className="button-quiet" onClick={() => setTab("plans")}>
+              Gerenciar planos
+            </button>
+            {hasTenants && (
+              <button
+                className="button-quiet"
+                onClick={() => setTab("tenants")}
+              >
+                Gerenciar empresas
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+      {tab === "settings" && (
+        <ProjectForm
+          project={project}
+          onSave={onProjectSave}
+          saving={saving}
+          error={error}
+        />
+      )}
+      {tab === "plans" && (
+        <MonetizationView
+          project={project}
+          plans={plans}
+          onSave={onPlansSave}
+          onToggle={onPlanToggle}
+          saving={saving}
+        />
+      )}
+      {tab === "tenants" && hasTenants && (
+        <TenantWorkspace
+          project={project}
+          tenants={tenants}
+          selectedTenant={selectedTenant}
+          units={units}
+          onCreate={onTenant.create}
+          onUpdate={onTenant.update}
+          onSelect={onTenant.select}
+          onUnitCreate={onTenant.createUnit}
+          onUnitToggle={onTenant.toggleUnit}
+          onTenantToggle={onTenant.toggle}
+          onTenantDelete={onTenant.remove}
+          onUnitDelete={onTenant.removeUnit}
+          saving={saving}
+          error={error}
+        />
+      )}
+    </section>
+  );
 }
 
-function OverviewContent({ projects, onOpen, onNew }) { const tauri = projects.filter(isTenantProject); return <section className="page-section"><div className="intro-card"><span className="eyebrow">CENTRAL VM NEXUS</span><h1>Um painel para criar e evoluir produtos.</h1><p>Projetos ficam separados por tecnologia. Planos, preço e moedas ficam dentro de cada projeto. Empresas existem somente nos sistemas Tauri multi-tenant.</p><button className="button-primary" onClick={onNew}>Novo projeto</button></div><div className="overview-grid"><article><small>Projetos</small><strong>{projects.length}</strong><span>sites, apps e sistemas</span></article><article><small>React</small><strong>{projects.filter((item) => inferredTechnology(item) === "react").length}</strong><span>web e aplicativos web</span></article><article><small>Android Studio</small><strong>{projects.filter((item) => inferredTechnology(item) === "android_studio").length}</strong><span>aplicativos Android</span></article><article><small>Tauri multi-tenant</small><strong>{tauri.length}</strong><span>com empresas isoladas</span></article></div><section className="recent-projects"><div className="section-heading"><div><span className="eyebrow">CONTINUAR</span><h2>Projetos recentes</h2></div></div><div className="project-grid">{projects.slice(0, 3).map((project) => <ProjectCard key={project.id} project={project} onOpen={onOpen} onEdit={onOpen} onDelete={() => {}} />)}</div></section></section>; }
+function OverviewContent({ projects, onOpen, onNew }) {
+  const tauri = projects.filter(isTenantProject);
+  return (
+    <section className="page-section">
+      <div className="intro-card">
+        <span className="eyebrow">CENTRAL VM NEXUS</span>
+        <h1>Um painel para criar e evoluir produtos.</h1>
+        <p>
+          Projetos ficam separados por tecnologia. Planos, preço e moedas ficam
+          dentro de cada projeto. Empresas existem somente nos sistemas Tauri
+          multi-tenant.
+        </p>
+        <button className="button-primary" onClick={onNew}>
+          Novo projeto
+        </button>
+      </div>
+      <div className="overview-grid">
+        <article>
+          <small>Projetos</small>
+          <strong>{projects.length}</strong>
+          <span>sites, apps e sistemas</span>
+        </article>
+        <article>
+          <small>React</small>
+          <strong>
+            {
+              projects.filter((item) => inferredTechnology(item) === "react")
+                .length
+            }
+          </strong>
+          <span>web e aplicativos web</span>
+        </article>
+        <article>
+          <small>Android Studio</small>
+          <strong>
+            {
+              projects.filter(
+                (item) => inferredTechnology(item) === "android_studio",
+              ).length
+            }
+          </strong>
+          <span>aplicativos Android</span>
+        </article>
+        <article>
+          <small>Tauri multi-tenant</small>
+          <strong>{tauri.length}</strong>
+          <span>com empresas isoladas</span>
+        </article>
+      </div>
+      <section className="recent-projects">
+        <div className="section-heading">
+          <div>
+            <span className="eyebrow">CONTINUAR</span>
+            <h2>Projetos recentes</h2>
+          </div>
+        </div>
+        <div className="project-grid">
+          {projects.slice(0, 3).map((project) => (
+            <ProjectCard
+              key={project.id}
+              project={project}
+              onOpen={onOpen}
+              onEdit={onOpen}
+              onDelete={() => {}}
+            />
+          ))}
+        </div>
+      </section>
+    </section>
+  );
+}
 
 function ControlTowerView({ token, onNavigate, onError }) {
-  const [range, setRange] = useState("30"); const [data, setData] = useState({ financial: {}, subscriptions: {}, education: {}, alerts: [], activity: [] }); const [loading, setLoading] = useState(false);
-  async function load() { setLoading(true); const to = new Date(); const from = new Date(to); from.setDate(from.getDate() - Number(range)); try { setData(await listarControlTower(token, { from: from.toISOString(), to: to.toISOString() })); } catch (error) { onError(error.message); } finally { setLoading(false); } }
+  const [range, setRange] = useState("30");
+  const [data, setData] = useState({
+    financial: {},
+    subscriptions: {},
+    education: {},
+    alerts: [],
+    activity: [],
+  });
+  const [loading, setLoading] = useState(false);
+  async function load() {
+    setLoading(true);
+    const to = new Date();
+    const from = new Date(to);
+    from.setDate(from.getDate() - Number(range));
+    try {
+      setData(
+        await listarControlTower(token, {
+          from: from.toISOString(),
+          to: to.toISOString(),
+        }),
+      );
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
   // The control tower synchronizes the selected period with the protected API.
-  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [range, token]);
-  const financial = data.financial || {}; const subscriptions = data.subscriptions || {}; const education = data.education || {};
-  return <section className="page-section control-tower"><div className="page-heading"><div><span className="eyebrow">CENTRAL DE CONTROLE</span><h1>Visão geral do negócio</h1><p>Financeiro, assinaturas, alunos e alertas em uma única tela.</p></div><div className="control-filters"><label>Período<select value={range} onChange={(event) => setRange(event.target.value)}><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="90">Últimos 90 dias</option><option value="365">Último ano</option></select></label><button className="button-quiet" onClick={load}>{loading ? "Atualizando..." : "Atualizar"}</button></div></div><div className="metric-section"><div className="metric-section-heading"><span className="eyebrow">FINANCEIRO</span><small>Período selecionado</small></div><div className="control-metrics"><article className="metric-highlight"><small>Receita recorrente mensal</small><strong>{money(financial.mrr)}</strong><span>{money(financial.new_mrr)} em novas assinaturas</span></article><article><small>Assinaturas ativas</small><strong>{subscriptions.active || 0}</strong><span>{subscriptions.trials || 0} em teste</span></article><article><small>Receita perdida</small><strong>{money(financial.lost_mrr)}</strong><span>{subscriptions.cancelled_in_period || 0} cancelada(s)</span></article><article><small>Cobranças pendentes</small><strong>{financial.past_due_tenants || 0}</strong><span>empresa(s) precisam de atenção</span></article></div></div><div className="metric-section"><div className="metric-section-heading"><span className="eyebrow">PRODUTO E EDUCAÇÃO</span><small>Atividade do StudyCode</small></div><div className="control-metrics"><article><small>Alunos cadastrados</small><strong>{education.total_students || 0}</strong><span>{education.students_in_period || 0} ativos no período</span></article><article><small>Alunos ativos</small><strong>{education.active_students || 0}</strong><span>contas habilitadas</span></article><article><small>Aulas concluídas</small><strong>{education.completed_lessons || 0}</strong><span>no período</span></article><article><small>Uso da IA</small><strong>{education.ai_questions || 0}</strong><span>{education.coins_moved || 0} CodeCoins movimentados</span></article></div></div><div className="control-columns"><section className="workspace-panel"><div className="section-heading"><div><span className="eyebrow">AÇÃO NECESSÁRIA</span><h2>Alertas</h2></div></div><div className="alert-list">{data.alerts.map((alert, index) => <article key={`${alert.type}-${alert.id || index}`}><span className={`alert-icon ${alert.type}`}>!</span><div><strong>{alert.title}</strong><small>{alert.detail}</small></div><button className="button-quiet" onClick={() => onNavigate(alert.type === "community" ? "alunos" : "assinaturas")}>Ver</button></article>)}{!data.alerts.length && <div className="empty-card"><h3>Nenhuma ação pendente.</h3><p>O ambiente está sem alertas no período escolhido.</p></div>}</div></section><section className="workspace-panel"><div className="section-heading"><div><span className="eyebrow">ATIVIDADE</span><h2>Últimas alterações</h2></div></div><div className="activity-list">{data.activity.map((item, index) => <div key={`${item.action}-${index}`}><strong>{item.action}</strong><span>{new Date(item.created_at).toLocaleString("pt-BR")}</span></div>)}{!data.activity.length && <div className="empty-card">Nenhuma alteração registrada.</div>}</div></section></div></section>;
+   
+  useEffect(() => {
+    load();
+  }, [range, token]);
+  const financial = data.financial || {};
+  const subscriptions = data.subscriptions || {};
+  const education = data.education || {};
+  return (
+    <section className="page-section control-tower">
+      <div className="page-heading">
+        <div>
+          <span className="eyebrow">CENTRAL DE CONTROLE</span>
+          <h1>Visão geral do negócio</h1>
+          <p>Financeiro, assinaturas, alunos e alertas em uma única tela.</p>
+        </div>
+        <div className="control-filters">
+          <label>
+            Período
+            <select
+              value={range}
+              onChange={(event) => setRange(event.target.value)}
+            >
+              <option value="7">Últimos 7 dias</option>
+              <option value="30">Últimos 30 dias</option>
+              <option value="90">Últimos 90 dias</option>
+              <option value="365">Último ano</option>
+            </select>
+          </label>
+          <button className="button-quiet" onClick={load}>
+            {loading ? "Atualizando..." : "Atualizar"}
+          </button>
+        </div>
+      </div>
+      <div className="metric-section">
+        <div className="metric-section-heading">
+          <span className="eyebrow">FINANCEIRO</span>
+          <small>Período selecionado</small>
+        </div>
+        <div className="control-metrics">
+          <article className="metric-highlight">
+            <small>Receita recorrente mensal</small>
+            <strong>{money(financial.mrr)}</strong>
+            <span>{money(financial.new_mrr)} em novas assinaturas</span>
+          </article>
+          <article>
+            <small>Assinaturas ativas</small>
+            <strong>{subscriptions.active || 0}</strong>
+            <span>{subscriptions.trials || 0} em teste</span>
+          </article>
+          <article>
+            <small>Receita perdida</small>
+            <strong>{money(financial.lost_mrr)}</strong>
+            <span>{subscriptions.cancelled_in_period || 0} cancelada(s)</span>
+          </article>
+          <article>
+            <small>Cobranças pendentes</small>
+            <strong>{financial.past_due_tenants || 0}</strong>
+            <span>empresa(s) precisam de atenção</span>
+          </article>
+        </div>
+      </div>
+      <div className="metric-section">
+        <div className="metric-section-heading">
+          <span className="eyebrow">PRODUTO E EDUCAÇÃO</span>
+          <small>Atividade do StudyCode</small>
+        </div>
+        <div className="control-metrics">
+          <article>
+            <small>Alunos cadastrados</small>
+            <strong>{education.total_students || 0}</strong>
+            <span>{education.students_in_period || 0} ativos no período</span>
+          </article>
+          <article>
+            <small>Alunos ativos</small>
+            <strong>{education.active_students || 0}</strong>
+            <span>contas habilitadas</span>
+          </article>
+          <article>
+            <small>Aulas concluídas</small>
+            <strong>{education.completed_lessons || 0}</strong>
+            <span>no período</span>
+          </article>
+          <article>
+            <small>Uso da IA</small>
+            <strong>{education.ai_questions || 0}</strong>
+            <span>{education.coins_moved || 0} CodeCoins movimentados</span>
+          </article>
+        </div>
+      </div>
+      <div className="control-columns">
+        <section className="workspace-panel">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">AÇÃO NECESSÁRIA</span>
+              <h2>Alertas</h2>
+            </div>
+          </div>
+          <div className="alert-list">
+            {data.alerts.map((alert, index) => (
+              <article key={`${alert.type}-${alert.id || index}`}>
+                <span className={`alert-icon ${alert.type}`}>!</span>
+                <div>
+                  <strong>{alert.title}</strong>
+                  <small>{alert.detail}</small>
+                </div>
+                <button
+                  className="button-quiet"
+                  onClick={() =>
+                    onNavigate(
+                      alert.type === "community" ? "alunos" : "assinaturas",
+                    )
+                  }
+                >
+                  Ver
+                </button>
+              </article>
+            ))}
+            {!data.alerts.length && (
+              <div className="empty-card">
+                <h3>Nenhuma ação pendente.</h3>
+                <p>O ambiente está sem alertas no período escolhido.</p>
+              </div>
+            )}
+          </div>
+        </section>
+        <section className="workspace-panel">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">ATIVIDADE</span>
+              <h2>Últimas alterações</h2>
+            </div>
+          </div>
+          <div className="activity-list">
+            {data.activity.map((item, index) => (
+              <div key={`${item.action}-${index}`}>
+                <strong>{item.action}</strong>
+                <span>{new Date(item.created_at).toLocaleString("pt-BR")}</span>
+              </div>
+            ))}
+            {!data.activity.length && (
+              <div className="empty-card">Nenhuma alteração registrada.</div>
+            )}
+          </div>
+        </section>
+      </div>
+    </section>
+  );
 }
 
 function FinancialViewLegacy({ token, onError }) {
-  const [data, setData] = useState({ summary: {}, monthly: [], products: [] }); const [loading, setLoading] = useState(false);
-  async function load() { setLoading(true); try { setData(await listarFinanceiro(token)); } catch (error) { onError(error.message); } finally { setLoading(false); } }
+  const [data, setData] = useState({ summary: {}, monthly: [], products: [] });
+  const [loading, setLoading] = useState(false);
+  async function load() {
+    setLoading(true);
+    try {
+      setData(await listarFinanceiro(token));
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
   // Financial data is loaded from the authenticated API when this section opens.
-  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [token]);
-  return <section className="page-section detail-page"><div className="page-heading"><div><span className="eyebrow">FINANCEIRO</span><h1>Receitas e cobranças</h1><p>Acompanhe receita recorrente, ticket médio e produtos que geram faturamento.</p></div><div className="action-row"><button className="button-quiet" onClick={() => downloadCsv("financeiro-vm-nexus.csv", ["Mês", "Receita", "Assinaturas ativas"], data.monthly.map((item) => [item.month, item.revenue, item.active_subscriptions]))}>Exportar CSV</button><button className="button-quiet" onClick={load}>{loading ? "Atualizando..." : "Atualizar"}</button></div></div><div className="control-metrics"><article className="metric-highlight"><small>MRR atual</small><strong>{money(data.summary.mrr)}</strong><span>receita recorrente mensal</span></article><article><small>Ticket médio</small><strong>{money(data.summary.average_ticket)}</strong><span>por assinatura ativa</span></article><article><small>Assinaturas ativas</small><strong>{data.summary.active_subscriptions || 0}</strong><span>gerando receita</span></article><article><small>Em atraso</small><strong>{data.summary.past_due_tenants || 0}</strong><span>cobranças pendentes</span></article></div><div className="detail-columns"><section className="workspace-panel"><div className="section-heading"><div><span className="eyebrow">EVOLUÇÃO</span><h2>Receita por mês</h2></div></div><div className="data-list">{data.monthly.map((item) => <div key={item.month}><strong>{item.month}</strong><span>{money(item.revenue)} · {item.active_subscriptions} assinaturas</span></div>)}</div></section><section className="workspace-panel"><div className="section-heading"><div><span className="eyebrow">POR PRODUTO</span><h2>Receita atual</h2></div></div><div className="data-list">{data.products.map((item) => <div key={item.slug}><strong>{item.product_name}</strong><span>{money(item.mrr)} · {item.active_subscriptions} ativas</span></div>)}</div></section></div></section>;
+   
+  useEffect(() => {
+    load();
+  }, [token]);
+  return (
+    <section className="page-section detail-page">
+      <div className="page-heading">
+        <div>
+          <span className="eyebrow">FINANCEIRO</span>
+          <h1>Receitas e cobranças</h1>
+          <p>
+            Acompanhe receita recorrente, ticket médio e produtos que geram
+            faturamento.
+          </p>
+        </div>
+        <div className="action-row">
+          <button
+            className="button-quiet"
+            onClick={() =>
+              downloadCsv(
+                "financeiro-vm-nexus.csv",
+                ["Mês", "Receita", "Assinaturas ativas"],
+                data.monthly.map((item) => [
+                  item.month,
+                  item.revenue,
+                  item.active_subscriptions,
+                ]),
+              )
+            }
+          >
+            Exportar CSV
+          </button>
+          <button className="button-quiet" onClick={load}>
+            {loading ? "Atualizando..." : "Atualizar"}
+          </button>
+        </div>
+      </div>
+      <div className="control-metrics">
+        <article className="metric-highlight">
+          <small>MRR atual</small>
+          <strong>{money(data.summary.mrr)}</strong>
+          <span>receita recorrente mensal</span>
+        </article>
+        <article>
+          <small>Ticket médio</small>
+          <strong>{money(data.summary.average_ticket)}</strong>
+          <span>por assinatura ativa</span>
+        </article>
+        <article>
+          <small>Assinaturas ativas</small>
+          <strong>{data.summary.active_subscriptions || 0}</strong>
+          <span>gerando receita</span>
+        </article>
+        <article>
+          <small>Em atraso</small>
+          <strong>{data.summary.past_due_tenants || 0}</strong>
+          <span>cobranças pendentes</span>
+        </article>
+      </div>
+      <div className="detail-columns">
+        <section className="workspace-panel">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">EVOLUÇÃO</span>
+              <h2>Receita por mês</h2>
+            </div>
+          </div>
+          <div className="data-list">
+            {data.monthly.map((item) => (
+              <div key={item.month}>
+                <strong>{item.month}</strong>
+                <span>
+                  {money(item.revenue)} · {item.active_subscriptions}{" "}
+                  assinaturas
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="workspace-panel">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">POR PRODUTO</span>
+              <h2>Receita atual</h2>
+            </div>
+          </div>
+          <div className="data-list">
+            {data.products.map((item) => (
+              <div key={item.slug}>
+                <strong>{item.product_name}</strong>
+                <span>
+                  {money(item.mrr)} · {item.active_subscriptions} ativas
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </section>
+  );
 }
 
 FinancialViewLegacy.displayName = "FinancialViewLegacy";
 
 function SubscriptionsViewLegacy({ token, onError }) {
-  const [status, setStatus] = useState("all"); const [items, setItems] = useState([]); const [loading, setLoading] = useState(false);
-  async function load(nextStatus = status) { setLoading(true); try { setItems((await listarAssinaturas(token, nextStatus)).subscriptions); } catch (error) { onError(error.message); } finally { setLoading(false); } }
+  const [status, setStatus] = useState("all");
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  async function load(nextStatus = status) {
+    setLoading(true);
+    try {
+      setItems((await listarAssinaturas(token, nextStatus)).subscriptions);
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
   // The selected status is the only query input for this list.
-  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
-  useEffect(() => { load(status); }, [status, token]);
-  return <section className="page-section detail-page"><div className="page-heading"><div><span className="eyebrow">ASSINATURAS</span><h1>Ciclo de clientes</h1><p>Veja o estado de cada assinatura e identifique rapidamente testes, pausas e cancelamentos.</p></div><div className="control-filters"><label>Status<select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">Todos</option><option value="active">Ativas</option><option value="trial">Em teste</option><option value="paused">Pausadas</option><option value="cancelled">Canceladas</option></select></label><div className="action-row"><button className="button-quiet" onClick={() => downloadCsv("assinaturas-vm-nexus.csv", ["Cliente", "Produto", "Plano", "Valor", "Status"], items.map((item) => [item.tenant_name, item.product_name, item.plan_name, item.monthly_price, item.status]))}>Exportar CSV</button><button className="button-quiet" onClick={() => load()}>{loading ? "Atualizando..." : "Atualizar"}</button></div></div></div><div className="subscription-table"><div className="subscription-head"><span>Cliente</span><span>Produto e plano</span><span>Valor</span><span>Status</span><span>Período</span></div>{items.map((item) => <div className="subscription-row" key={item.id}><span><strong>{item.tenant_name}</strong><small>{item.tenant_slug}</small></span><span><strong>{item.product_name}</strong><small>{item.plan_name}</small></span><span>{money(item.monthly_price)}</span><span><em className={`status-pill ${item.status === "active" ? "available" : "planned"}`}>{item.status}</em><small>{item.billing_status}</small></span><span><small>Início: {new Date(item.started_at).toLocaleDateString("pt-BR")}</small>{item.ends_at && <small>Fim: {new Date(item.ends_at).toLocaleDateString("pt-BR")}</small>}</span></div>)}{!items.length && <div className="empty-card"><h3>Nenhuma assinatura encontrada.</h3><p>Altere o filtro ou aguarde as primeiras contratações.</p></div>}</div></section>;
+   
+  useEffect(() => {
+    load(status);
+  }, [status, token]);
+  return (
+    <section className="page-section detail-page">
+      <div className="page-heading">
+        <div>
+          <span className="eyebrow">ASSINATURAS</span>
+          <h1>Ciclo de clientes</h1>
+          <p>
+            Veja o estado de cada assinatura e identifique rapidamente testes,
+            pausas e cancelamentos.
+          </p>
+        </div>
+        <div className="control-filters">
+          <label>
+            Status
+            <select
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+            >
+              <option value="all">Todos</option>
+              <option value="active">Ativas</option>
+              <option value="trial">Em teste</option>
+              <option value="paused">Pausadas</option>
+              <option value="cancelled">Canceladas</option>
+            </select>
+          </label>
+          <div className="action-row">
+            <button
+              className="button-quiet"
+              onClick={() =>
+                downloadCsv(
+                  "assinaturas-vm-nexus.csv",
+                  ["Cliente", "Produto", "Plano", "Valor", "Status"],
+                  items.map((item) => [
+                    item.tenant_name,
+                    item.product_name,
+                    item.plan_name,
+                    item.monthly_price,
+                    item.status,
+                  ]),
+                )
+              }
+            >
+              Exportar CSV
+            </button>
+            <button className="button-quiet" onClick={() => load()}>
+              {loading ? "Atualizando..." : "Atualizar"}
+            </button>
+          </div>
+        </div>
+      </div>
+      <div className="subscription-table">
+        <div className="subscription-head">
+          <span>Cliente</span>
+          <span>Produto e plano</span>
+          <span>Valor</span>
+          <span>Status</span>
+          <span>Período</span>
+        </div>
+        {items.map((item) => (
+          <div className="subscription-row" key={item.id}>
+            <span>
+              <strong>{item.tenant_name}</strong>
+              <small>{item.tenant_slug}</small>
+            </span>
+            <span>
+              <strong>{item.product_name}</strong>
+              <small>{item.plan_name}</small>
+            </span>
+            <span>{money(item.monthly_price)}</span>
+            <span>
+              <em
+                className={`status-pill ${item.status === "active" ? "available" : "planned"}`}
+              >
+                {item.status}
+              </em>
+              <small>{item.billing_status}</small>
+            </span>
+            <span>
+              <small>
+                Início: {new Date(item.started_at).toLocaleDateString("pt-BR")}
+              </small>
+              {item.ends_at && (
+                <small>
+                  Fim: {new Date(item.ends_at).toLocaleDateString("pt-BR")}
+                </small>
+              )}
+            </span>
+          </div>
+        ))}
+        {!items.length && (
+          <div className="empty-card">
+            <h3>Nenhuma assinatura encontrada.</h3>
+            <p>Altere o filtro ou aguarde as primeiras contratações.</p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
 }
 
 SubscriptionsViewLegacy.displayName = "SubscriptionsViewLegacy";
 
 /* eslint-disable no-unused-vars */
 function SubscriptionsViewLegacyManagement({ token, onError }) {
-  const [items, setItems] = useState([]); const [status, setStatus] = useState("all"); const [selected, setSelected] = useState(null); const [plans, setPlans] = useState([]); const [tenants, setTenants] = useState([]); const [loading, setLoading] = useState(false); const [saving, setSaving] = useState(false);
-  async function load(nextStatus = status) { setLoading(true); try { const [subscriptionData, tenantData] = await Promise.all([listarAssinaturas(token, nextStatus), listarTenants(token)]); setItems(subscriptionData.subscriptions); setTenants(tenantData.tenants || []); } catch (error) { onError(error.message); } finally { setLoading(false); } }
+  const [items, setItems] = useState([]);
+  const [status, setStatus] = useState("all");
+  const [selected, setSelected] = useState(null);
+  const [plans, setPlans] = useState([]);
+  const [tenants, setTenants] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  async function load(nextStatus = status) {
+    setLoading(true);
+    try {
+      const [subscriptionData, tenantData] = await Promise.all([
+        listarAssinaturas(token, nextStatus),
+        listarTenants(token),
+      ]);
+      setItems(subscriptionData.subscriptions);
+      setTenants(tenantData.tenants || []);
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
   // Billing records are refreshed whenever the authenticated filter changes.
-  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
-  useEffect(() => { load(status); }, [token, status]);
-  async function openSubscription(item) { setSelected(item); try { setPlans((await listarPlanos(token, item.product_slug)).plans); } catch (error) { onError(error.message); } }
+   
+  useEffect(() => {
+    load(status);
+  }, [token, status]);
+  async function openSubscription(item) {
+    setSelected(item);
+    try {
+      setPlans((await listarPlanos(token, item.product_slug)).plans);
+    } catch (error) {
+      onError(error.message);
+    }
+  }
   async function openCreate() {
-    const available = tenants.filter((tenant) => !items.some((item) => item.tenant_id === tenant.id && item.status !== "cancelled"));
-    if (!available.length) { onError("Todos os clientes já possuem uma assinatura ativa ou em teste."); return; }
+    const available = tenants.filter(
+      (tenant) =>
+        !items.some(
+          (item) => item.tenant_id === tenant.id && item.status !== "cancelled",
+        ),
+    );
+    if (!available.length) {
+      onError("Todos os clientes já possuem uma assinatura ativa ou em teste.");
+      return;
+    }
     const tenant = available[0];
     try {
-      const tenantPlans = (await listarPlanos(token, tenant.product_key)).plans || [];
+      const tenantPlans =
+        (await listarPlanos(token, tenant.product_key)).plans || [];
       setPlans(tenantPlans);
-      setSelected({ mode: "create", tenant_id: tenant.id, tenant_name: tenant.name, tenant_slug: tenant.slug, product_name: tenant.product_key, product_slug: tenant.product_key, status: "trial", billing_status: tenant.billing_status || "current", plan_id: tenantPlans[0]?.id || "", ends_at: null, due_date: tenant.due_date, grace_period_until: tenant.grace_period_until });
-    } catch (error) { onError(error.message); }
+      setSelected({
+        mode: "create",
+        tenant_id: tenant.id,
+        tenant_name: tenant.name,
+        tenant_slug: tenant.slug,
+        product_name: tenant.product_key,
+        product_slug: tenant.product_key,
+        status: "trial",
+        billing_status: tenant.billing_status || "current",
+        plan_id: tenantPlans[0]?.id || "",
+        ends_at: null,
+        due_date: tenant.due_date,
+        grace_period_until: tenant.grace_period_until,
+      });
+    } catch (error) {
+      onError(error.message);
+    }
   }
   async function changeCreateTenant(event) {
     const tenant = tenants.find((item) => item.id === event.target.value);
     if (!tenant) return;
     try {
-      const tenantPlans = (await listarPlanos(token, tenant.product_key)).plans || [];
+      const tenantPlans =
+        (await listarPlanos(token, tenant.product_key)).plans || [];
       setPlans(tenantPlans);
-      setSelected((current) => ({ ...current, tenant_id: tenant.id, tenant_name: tenant.name, tenant_slug: tenant.slug, product_name: tenant.product_key, product_slug: tenant.product_key, plan_id: tenantPlans[0]?.id || "", billing_status: tenant.billing_status || "current", due_date: tenant.due_date, grace_period_until: tenant.grace_period_until }));
-    } catch (error) { onError(error.message); }
+      setSelected((current) => ({
+        ...current,
+        tenant_id: tenant.id,
+        tenant_name: tenant.name,
+        tenant_slug: tenant.slug,
+        product_name: tenant.product_key,
+        product_slug: tenant.product_key,
+        plan_id: tenantPlans[0]?.id || "",
+        billing_status: tenant.billing_status || "current",
+        due_date: tenant.due_date,
+        grace_period_until: tenant.grace_period_until,
+      }));
+    } catch (error) {
+      onError(error.message);
+    }
   }
-  function dateInput(value) { return value ? new Date(value).toISOString().slice(0, 16) : ""; }
+  function dateInput(value) {
+    return value ? new Date(value).toISOString().slice(0, 16) : "";
+  }
   async function saveSubscription(event) {
-    event.preventDefault(); const form = new FormData(event.currentTarget); setSaving(true);
-     try { await atribuirPlanoTenant(token, selected.tenant_id, { planId: form.get("planId"), status: form.get("status"), endsAt: form.get("endsAt") || null }); await load(); setSelected((current) => current ? { ...current, mode: undefined, plan_id: form.get("planId"), plan_name: plans.find((plan) => plan.id === form.get("planId"))?.name || current.plan_name, status: form.get("status"), ends_at: form.get("endsAt") || null } : current); } catch (error) { onError(error.message); } finally { setSaving(false); }
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setSaving(true);
+    try {
+      await atribuirPlanoTenant(token, selected.tenant_id, {
+        planId: form.get("planId"),
+        status: form.get("status"),
+        endsAt: form.get("endsAt") || null,
+      });
+      await load();
+      setSelected((current) =>
+        current
+          ? {
+              ...current,
+              mode: undefined,
+              plan_id: form.get("planId"),
+              plan_name:
+                plans.find((plan) => plan.id === form.get("planId"))?.name ||
+                current.plan_name,
+              status: form.get("status"),
+              ends_at: form.get("endsAt") || null,
+            }
+          : current,
+      );
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setSaving(false);
+    }
   }
   async function saveBilling(event) {
-    event.preventDefault(); const form = new FormData(event.currentTarget); setSaving(true);
-    try { await atualizarCobrancaTenant(token, selected.tenant_id, { billingStatus: form.get("billingStatus"), dueDate: form.get("dueDate") || null, gracePeriodUntil: form.get("gracePeriodUntil") || null }); await load(); setSelected((current) => current ? { ...current, billing_status: form.get("billingStatus"), due_date: form.get("dueDate") || null, grace_period_until: form.get("gracePeriodUntil") || null } : current); } catch (error) { onError(error.message); } finally { setSaving(false); }
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setSaving(true);
+    try {
+      await atualizarCobrancaTenant(token, selected.tenant_id, {
+        billingStatus: form.get("billingStatus"),
+        dueDate: form.get("dueDate") || null,
+        gracePeriodUntil: form.get("gracePeriodUntil") || null,
+      });
+      await load();
+      setSelected((current) =>
+        current
+          ? {
+              ...current,
+              billing_status: form.get("billingStatus"),
+              due_date: form.get("dueDate") || null,
+              grace_period_until: form.get("gracePeriodUntil") || null,
+            }
+          : current,
+      );
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setSaving(false);
+    }
   }
-  const active = items.filter((item) => item.status === "active").length; const trial = items.filter((item) => item.status === "trial").length; const pastDue = items.filter((item) => item.billing_status === "past_due").length; const mrr = items.filter((item) => item.status === "active").reduce((total, item) => total + Number(item.monthly_price || 0), 0);
-  const statusLabel = { active: "Ativa", trial: "Em teste", paused: "Pausada", cancelled: "Cancelada" };
-  return <section className="page-section detail-page billing-page"><div className="page-heading"><div><span className="eyebrow">COBRANÇA E ASSINATURAS</span><h1>Ciclo de clientes</h1><p>Gerencie planos, status, vencimentos e situação financeira sem perder o histórico.</p></div><div className="control-filters"><label>Status<select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">Todos</option><option value="active">Ativas</option><option value="trial">Em teste</option><option value="paused">Pausadas</option><option value="cancelled">Canceladas</option></select></label><button className="button-quiet" onClick={() => load()}>{loading ? "Atualizando..." : "Atualizar"}</button></div></div><div className="billing-kpis"><article><small>MRR filtrado</small><strong>{money(mrr)}</strong><span>assinaturas ativas</span></article><article><small>Ativas</small><strong>{active}</strong><span>gerando receita</span></article><article><small>Em teste</small><strong>{trial}</strong><span>período de avaliação</span></article><article className={pastDue ? "billing-attention" : ""}><small>Em atraso</small><strong>{pastDue}</strong><span>cobrança precisa de ação</span></article></div><div className="subscription-table"><div className="subscription-head"><span>Cliente</span><span>Produto e plano</span><span>Valor</span><span>Status</span><span>Gestão</span></div>{items.map((item) => <div className="subscription-row" key={item.id}><span><strong>{item.tenant_name}</strong><small>{item.tenant_slug}</small></span><span><strong>{item.product_name}</strong><small>{item.plan_name}</small></span><span>{money(item.monthly_price)}</span><span><em className={"status-pill " + (item.status === "active" ? "available" : "planned")}>{statusLabel[item.status] || item.status}</em><small>{item.billing_status === "past_due" ? "Em atraso" : item.billing_status}</small></span><span><button className="button-quiet" onClick={() => openSubscription(item)}>Gerenciar</button></span></div>)}</div>{!items.length && <div className="empty-card"><h3>Nenhuma assinatura encontrada.</h3><p>Altere o filtro ou aguarde as primeiras contratações.</p></div>}{selected && <div className="billing-drawer"><div className="section-heading"><div><span className="eyebrow">GESTÃO DA ASSINATURA</span><h2>{selected.tenant_name}</h2><p>{selected.product_name} · {selected.tenant_slug}</p></div><button className="button-quiet" onClick={() => setSelected(null)}>Fechar</button></div><form className="billing-form" onSubmit={saveSubscription}><h3>Plano e ciclo</h3><div className="editor-grid"><label>Plano<select name="planId" defaultValue={selected.plan_id}>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {money(plan.monthly_price)}</option>)}</select></label><label>Status<select name="status" defaultValue={selected.status}><option value="trial">Em teste</option><option value="active">Ativa</option><option value="paused">Pausada</option><option value="cancelled">Cancelada</option></select></label></div><label>Encerramento previsto<input type="datetime-local" name="endsAt" defaultValue={dateInput(selected.ends_at)} /></label><button className="button-primary" disabled={saving}>{saving ? "Salvando..." : "Salvar assinatura"}</button></form><form className="billing-form" onSubmit={saveBilling}><h3>Cobrança</h3><div className="editor-grid"><label>Status financeiro<select name="billingStatus" defaultValue={selected.billing_status}><option value="current">Em dia</option><option value="paid">Pago</option><option value="past_due">Em atraso</option><option value="cancelled">Cancelado</option></select></label><label>Vencimento<input type="date" name="dueDate" defaultValue={selected.due_date ? String(selected.due_date).slice(0, 10) : ""} /></label></div><label>Fim do período de carência<input type="date" name="gracePeriodUntil" defaultValue={selected.grace_period_until ? String(selected.grace_period_until).slice(0, 10) : ""} /></label><button className="button-primary" disabled={saving}>{saving ? "Salvando..." : "Salvar cobrança"}</button></form></div>}</section>;
+  const active = items.filter((item) => item.status === "active").length;
+  const trial = items.filter((item) => item.status === "trial").length;
+  const pastDue = items.filter(
+    (item) => item.billing_status === "past_due",
+  ).length;
+  const mrr = items
+    .filter((item) => item.status === "active")
+    .reduce((total, item) => total + Number(item.monthly_price || 0), 0);
+  const statusLabel = {
+    active: "Ativa",
+    trial: "Em teste",
+    paused: "Pausada",
+    cancelled: "Cancelada",
+  };
+  return (
+    <section className="page-section detail-page billing-page">
+      <div className="page-heading">
+        <div>
+          <span className="eyebrow">COBRANÇA E ASSINATURAS</span>
+          <h1>Ciclo de clientes</h1>
+          <p>
+            Gerencie planos, status, vencimentos e situação financeira sem
+            perder o histórico.
+          </p>
+        </div>
+        <div className="control-filters">
+          <label>
+            Status
+            <select
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+            >
+              <option value="all">Todos</option>
+              <option value="active">Ativas</option>
+              <option value="trial">Em teste</option>
+              <option value="paused">Pausadas</option>
+              <option value="cancelled">Canceladas</option>
+            </select>
+          </label>
+          <button className="button-quiet" onClick={() => load()}>
+            {loading ? "Atualizando..." : "Atualizar"}
+          </button>
+        </div>
+      </div>
+      <div className="billing-kpis">
+        <article>
+          <small>MRR filtrado</small>
+          <strong>{money(mrr)}</strong>
+          <span>assinaturas ativas</span>
+        </article>
+        <article>
+          <small>Ativas</small>
+          <strong>{active}</strong>
+          <span>gerando receita</span>
+        </article>
+        <article>
+          <small>Em teste</small>
+          <strong>{trial}</strong>
+          <span>período de avaliação</span>
+        </article>
+        <article className={pastDue ? "billing-attention" : ""}>
+          <small>Em atraso</small>
+          <strong>{pastDue}</strong>
+          <span>cobrança precisa de ação</span>
+        </article>
+      </div>
+      <div className="subscription-table">
+        <div className="subscription-head">
+          <span>Cliente</span>
+          <span>Produto e plano</span>
+          <span>Valor</span>
+          <span>Status</span>
+          <span>Gestão</span>
+        </div>
+        {items.map((item) => (
+          <div className="subscription-row" key={item.id}>
+            <span>
+              <strong>{item.tenant_name}</strong>
+              <small>{item.tenant_slug}</small>
+            </span>
+            <span>
+              <strong>{item.product_name}</strong>
+              <small>{item.plan_name}</small>
+            </span>
+            <span>{money(item.monthly_price)}</span>
+            <span>
+              <em
+                className={
+                  "status-pill " +
+                  (item.status === "active" ? "available" : "planned")
+                }
+              >
+                {statusLabel[item.status] || item.status}
+              </em>
+              <small>
+                {item.billing_status === "past_due"
+                  ? "Em atraso"
+                  : item.billing_status}
+              </small>
+            </span>
+            <span>
+              <button
+                className="button-quiet"
+                onClick={() => openSubscription(item)}
+              >
+                Gerenciar
+              </button>
+            </span>
+          </div>
+        ))}
+      </div>
+      {!items.length && (
+        <div className="empty-card">
+          <h3>Nenhuma assinatura encontrada.</h3>
+          <p>Altere o filtro ou aguarde as primeiras contratações.</p>
+        </div>
+      )}
+      {selected && (
+        <div className="billing-drawer">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">GESTÃO DA ASSINATURA</span>
+              <h2>{selected.tenant_name}</h2>
+              <p>
+                {selected.product_name} · {selected.tenant_slug}
+              </p>
+            </div>
+            <button className="button-quiet" onClick={() => setSelected(null)}>
+              Fechar
+            </button>
+          </div>
+          <form className="billing-form" onSubmit={saveSubscription}>
+            <h3>Plano e ciclo</h3>
+            <div className="editor-grid">
+              <label>
+                Plano
+                <select name="planId" defaultValue={selected.plan_id}>
+                  {plans.map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.name} · {money(plan.monthly_price)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Status
+                <select name="status" defaultValue={selected.status}>
+                  <option value="trial">Em teste</option>
+                  <option value="active">Ativa</option>
+                  <option value="paused">Pausada</option>
+                  <option value="cancelled">Cancelada</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              Encerramento previsto
+              <input
+                type="datetime-local"
+                name="endsAt"
+                defaultValue={dateInput(selected.ends_at)}
+              />
+            </label>
+            <button className="button-primary" disabled={saving}>
+              {saving ? "Salvando..." : "Salvar assinatura"}
+            </button>
+          </form>
+          <form className="billing-form" onSubmit={saveBilling}>
+            <h3>Cobrança</h3>
+            <div className="editor-grid">
+              <label>
+                Status financeiro
+                <select
+                  name="billingStatus"
+                  defaultValue={selected.billing_status}
+                >
+                  <option value="current">Em dia</option>
+                  <option value="paid">Pago</option>
+                  <option value="past_due">Em atraso</option>
+                  <option value="cancelled">Cancelado</option>
+                </select>
+              </label>
+              <label>
+                Vencimento
+                <input
+                  type="date"
+                  name="dueDate"
+                  defaultValue={
+                    selected.due_date
+                      ? String(selected.due_date).slice(0, 10)
+                      : ""
+                  }
+                />
+              </label>
+            </div>
+            <label>
+              Fim do período de carência
+              <input
+                type="date"
+                name="gracePeriodUntil"
+                defaultValue={
+                  selected.grace_period_until
+                    ? String(selected.grace_period_until).slice(0, 10)
+                    : ""
+                }
+              />
+            </label>
+            <button className="button-primary" disabled={saving}>
+              {saving ? "Salvando..." : "Salvar cobrança"}
+            </button>
+          </form>
+        </div>
+      )}
+    </section>
+  );
 }
 /* eslint-enable no-unused-vars */
 
 function StudentDirectoryLegacyView({ token, onError }) {
-  const [students, setStudents] = useState([]); const [search, setSearch] = useState(""); const [selected, setSelected] = useState(null);
-  async function load() { try { setStudents((await listarStudyCodeAlunos(token)).students); } catch (error) { onError(error.message); } }
+  const [students, setStudents] = useState([]);
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState(null);
+  async function load() {
+    try {
+      setStudents((await listarStudyCodeAlunos(token)).students);
+    } catch (error) {
+      onError(error.message);
+    }
+  }
   // This directory is the administrative CRM entry point for StudyCode users.
-  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [token]);
-  const filtered = students.filter((student) => `${student.name} ${student.email}`.toLowerCase().includes(search.toLowerCase()));
-  return <section className="page-section detail-page"><div className="page-heading"><div><span className="eyebrow">CRM STUDYCODE</span><h1>Alunos</h1><p>Consulte cadastro, plano, progresso, sequência e atividade de IA.</p></div><div className="action-row"><input className="directory-search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar nome ou e-mail" /><button className="button-quiet" onClick={() => downloadCsv("alunos-studycode.csv", ["Nome", "E-mail", "Plano", "XP", "Sequência", "Aulas", "Perguntas IA"], filtered.map((student) => [student.name, student.email, student.plan_name, student.xp, student.streak_days, student.completed_lessons, student.ai_questions]))}>Exportar CSV</button></div></div><div className="student-table"><div className="student-table-head"><span>Aluno</span><span>Plano</span><span>Progresso</span><span>Atividade</span></div>{filtered.map((student) => <button className="student-row" key={student.id} onClick={() => setSelected(student)}><span><strong>{student.name}</strong><small>{student.email}</small></span><span>{student.plan_name || "Sem plano"}</span><span>{student.xp || 0} XP · {student.streak_days || 0} dias<br /><small>{student.completed_lessons || 0} aulas concluídas</small></span><span>{student.ai_questions || 0} perguntas IA</span></button>)}</div>{selected && <div className="detail-drawer"><div className="section-heading"><div><span className="eyebrow">ALUNO SELECIONADO</span><h2>{selected.name}</h2><p>{selected.email}</p></div><button className="button-quiet" onClick={() => setSelected(null)}>Fechar</button></div><div className="student-detail-grid"><article><small>Plano</small><strong>{selected.plan_name || "Sem plano"}</strong><span>{selected.active ? "Conta ativa" : "Conta desativada"}</span></article><article><small>XP e sequência</small><strong>{selected.xp || 0} XP</strong><span>{selected.streak_days || 0} dias seguidos</span></article><article><small>Trilha</small><strong>{selected.current_track || "Nenhuma"}</strong><span>{selected.completed_lessons || 0} aulas concluídas</span></article></div></div>}</section>;
+   
+  useEffect(() => {
+    load();
+  }, [token]);
+  const filtered = students.filter((student) =>
+    `${student.name} ${student.email}`
+      .toLowerCase()
+      .includes(search.toLowerCase()),
+  );
+  return (
+    <section className="page-section detail-page">
+      <div className="page-heading">
+        <div>
+          <span className="eyebrow">CRM STUDYCODE</span>
+          <h1>Alunos</h1>
+          <p>
+            Consulte cadastro, plano, progresso, sequência e atividade de IA.
+          </p>
+        </div>
+        <div className="action-row">
+          <input
+            className="directory-search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar nome ou e-mail"
+          />
+          <button
+            className="button-quiet"
+            onClick={() =>
+              downloadCsv(
+                "alunos-studycode.csv",
+                [
+                  "Nome",
+                  "E-mail",
+                  "Plano",
+                  "XP",
+                  "Sequência",
+                  "Aulas",
+                  "Perguntas IA",
+                ],
+                filtered.map((student) => [
+                  student.name,
+                  student.email,
+                  student.plan_name,
+                  student.xp,
+                  student.streak_days,
+                  student.completed_lessons,
+                  student.ai_questions,
+                ]),
+              )
+            }
+          >
+            Exportar CSV
+          </button>
+        </div>
+      </div>
+      <div className="student-table">
+        <div className="student-table-head">
+          <span>Aluno</span>
+          <span>Plano</span>
+          <span>Progresso</span>
+          <span>Atividade</span>
+        </div>
+        {filtered.map((student) => (
+          <button
+            className="student-row"
+            key={student.id}
+            onClick={() => setSelected(student)}
+          >
+            <span>
+              <strong>{student.name}</strong>
+              <small>{student.email}</small>
+            </span>
+            <span>{student.plan_name || "Sem plano"}</span>
+            <span>
+              {student.xp || 0} XP · {student.streak_days || 0} dias
+              <br />
+              <small>{student.completed_lessons || 0} aulas concluídas</small>
+            </span>
+            <span>{student.ai_questions || 0} perguntas IA</span>
+          </button>
+        ))}
+      </div>
+      {selected && (
+        <div className="detail-drawer">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">ALUNO SELECIONADO</span>
+              <h2>{selected.name}</h2>
+              <p>{selected.email}</p>
+            </div>
+            <button className="button-quiet" onClick={() => setSelected(null)}>
+              Fechar
+            </button>
+          </div>
+          <div className="student-detail-grid">
+            <article>
+              <small>Plano</small>
+              <strong>{selected.plan_name || "Sem plano"}</strong>
+              <span>
+                {selected.active ? "Conta ativa" : "Conta desativada"}
+              </span>
+            </article>
+            <article>
+              <small>XP e sequência</small>
+              <strong>{selected.xp || 0} XP</strong>
+              <span>{selected.streak_days || 0} dias seguidos</span>
+            </article>
+            <article>
+              <small>Trilha</small>
+              <strong>{selected.current_track || "Nenhuma"}</strong>
+              <span>{selected.completed_lessons || 0} aulas concluídas</span>
+            </article>
+          </div>
+        </div>
+      )}
+    </section>
+  );
 }
 
 StudentDirectoryLegacyView.displayName = "StudentDirectoryLegacyView";
 
 function StudentDirectoryView({ token, onError }) {
-  const [students, setStudents] = useState([]); const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState(null); const [studentDetail, setStudentDetail] = useState(null);
-  const [detailTab, setDetailTab] = useState("profile"); const [loading, setLoading] = useState(false); const [detailLoading, setDetailLoading] = useState(false);
-  const formatDate = (value, withTime = false) => value ? new Date(value).toLocaleString("pt-BR", withTime ? { dateStyle: "short", timeStyle: "short" } : { dateStyle: "short" }) : "Não informado";
-  async function load() { setLoading(true); try { setStudents((await listarStudyCodeAlunos(token)).students); } catch (error) { onError(error.message); } finally { setLoading(false); } }
+  const [students, setStudents] = useState([]);
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [studentDetail, setStudentDetail] = useState(null);
+  const [detailTab, setDetailTab] = useState("profile");
+  const [loading, setLoading] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const formatDate = (value, withTime = false) =>
+    value
+      ? new Date(value).toLocaleString(
+          "pt-BR",
+          withTime
+            ? { dateStyle: "short", timeStyle: "short" }
+            : { dateStyle: "short" },
+        )
+      : "Não informado";
+  async function load() {
+    setLoading(true);
+    try {
+      setStudents((await listarStudyCodeAlunos(token)).students);
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
   async function openStudent(student) {
-    setSelected(student); setStudentDetail(null); setDetailTab("profile"); setDetailLoading(true);
-    try { setStudentDetail(await detalharStudyCodeAluno(token, student.id)); } catch (error) { onError(error.message); } finally { setDetailLoading(false); }
+    setSelected(student);
+    setStudentDetail(null);
+    setDetailTab("profile");
+    setDetailLoading(true);
+    try {
+      setStudentDetail(await detalharStudyCodeAluno(token, student.id));
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setDetailLoading(false);
+    }
   }
   // This directory is the administrative CRM entry point for StudyCode users.
-  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [token]);
-  const filtered = students.filter((student) => (student.name + " " + student.email).toLowerCase().includes(search.toLowerCase()));
+   
+  useEffect(() => {
+    load();
+  }, [token]);
+  const filtered = students.filter((student) =>
+    (student.name + " " + student.email)
+      .toLowerCase()
+      .includes(search.toLowerCase()),
+  );
   const detail = studentDetail?.student;
-  const tabs = [["profile", "Perfil"], ["progress", "Progresso"], ["ai", "IA"], ["coins", "CodeCoins"], ["certificates", "Certificados"]];
-  return <section className="page-section detail-page"><div className="page-heading"><div><span className="eyebrow">CRM STUDYCODE</span><h1>Alunos</h1><p>Consulte cadastro, plano, progresso, sequência e atividade de IA.</p></div><div className="action-row"><input className="directory-search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar nome ou e-mail" /><button className="button-quiet" onClick={() => downloadCsv("alunos-studycode.csv", ["Nome", "E-mail", "Plano", "XP", "Sequência", "Aulas", "Perguntas IA"], filtered.map((student) => [student.name, student.email, student.plan_name, student.xp, student.streak_days, student.completed_lessons, student.ai_questions]))}>Exportar CSV</button><button className="button-quiet" onClick={load}>{loading ? "Atualizando..." : "Atualizar"}</button></div></div><div className="student-table"><div className="student-table-head"><span>Aluno</span><span>Plano</span><span>Progresso</span><span>Atividade</span></div>{filtered.map((student) => <button className="student-row" key={student.id} onClick={() => openStudent(student)}><span><strong>{student.name}</strong><small>{student.email}</small></span><span>{student.plan_name || "Sem plano"}</span><span>{student.xp || 0} XP · {student.streak_days || 0} dias<br /><small>{student.completed_lessons || 0} aulas concluídas</small></span><span>{student.ai_questions || 0} perguntas IA<br /><small>{student.active ? "Ativo" : "Desativado"}</small></span></button>)}</div>{!filtered.length && <div className="empty-card"><h3>Nenhum aluno encontrado.</h3><p>Altere a busca ou aguarde novos cadastros do StudyCode.</p></div>}{selected && <div className="detail-drawer student-detail-drawer"><div className="section-heading"><div><span className="eyebrow">DETALHES DO ALUNO</span><h2>{selected.name}</h2><p>{selected.email}</p></div><div className="action-row"><span className={"status-pill " + (selected.active ? "available" : "planned")}>{selected.active ? "Ativo" : "Desativado"}</span><button className="button-quiet" onClick={() => { setSelected(null); setStudentDetail(null); }}>Fechar</button></div></div>{detailLoading && <div className="loading-note">Carregando histórico completo...</div>}{detail && <><div className="student-detail-grid"><article><small>Dados pessoais</small><strong>{detail.phone || "Telefone não informado"}</strong><span>{detail.birth_date || "Nascimento não informado"} · {detail.city || "Cidade não informada"}</span></article><article><small>Plano e evolução</small><strong>{detail.plan_name || "Sem plano"}</strong><span>{detail.xp || 0} XP · sequência de {detail.streak_days || 0} dias</span></article><article><small>Trilha atual</small><strong>{detail.current_track || "Nenhuma trilha"}</strong><span>{studentDetail.progress.filter((item) => item.completed_at).length} aulas concluídas</span></article></div><nav className="student-detail-tabs">{tabs.map(([id, label]) => <button key={id} className={detailTab === id ? "active" : ""} onClick={() => setDetailTab(id)}>{label}</button>)}</nav><div className="student-detail-content">{detailTab === "profile" && <div className="student-data-grid"><article><small>E-mail</small><strong>{detail.email}</strong></article><article><small>País</small><strong>{detail.country || "Não informado"}</strong></article><article><small>Cadastro</small><strong>{formatDate(detail.created_at)}</strong></article><article><small>Último acesso</small><strong>{formatDate(detail.last_active_at, true)}</strong></article></div>}{detailTab === "progress" && <div className="student-detail-table">{studentDetail.progress.map((item, index) => <div key={item.lesson + index}><span><strong>{item.lesson}</strong><small>{item.track_name || "Trilha"} · {item.module_name || "Módulo"}</small></span><span>{item.completed_at ? "Concluída em " + formatDate(item.completed_at) : "Em andamento"} · {item.xp_earned || 0} XP</span></div>)}{!studentDetail.progress.length && <small>Nenhum progresso registrado.</small>}</div>}{detailTab === "ai" && <div className="student-detail-table">{studentDetail.aiHistory.map((item) => <div key={item.id}><span><strong>{item.provider} / {item.model}</strong><small>{item.question}</small></span><span>{item.tokens_used || 0} tokens · {formatDate(item.created_at)}</span></div>)}{!studentDetail.aiHistory.length && <small>Nenhuma pergunta registrada.</small>}</div>}{detailTab === "coins" && <div className="student-detail-table">{studentDetail.coins.map((item) => <div key={item.id}><span><strong className={item.amount > 0 ? "coin-positive" : "coin-negative"}>{item.amount > 0 ? "+" : ""}{item.amount} CodeCoins</strong><small>{item.reason}</small></span><span>{formatDate(item.created_at)}</span></div>)}{!studentDetail.coins.length && <small>Nenhuma movimentação de CodeCoins.</small>}</div>}{detailTab === "certificates" && <div className="student-detail-table">{studentDetail.certificates.map((item) => <div key={item.certificate_code}><span><strong>{item.title}</strong><small>{item.certificate_code}</small></span><span>{item.status} · {formatDate(item.issued_at)}</span></div>)}{!studentDetail.certificates.length && <small>Nenhum certificado emitido.</small>}</div>}</div></>}</div>}</section>;
+  const tabs = [
+    ["profile", "Perfil"],
+    ["progress", "Progresso"],
+    ["ai", "IA"],
+    ["coins", "CodeCoins"],
+    ["certificates", "Certificados"],
+  ];
+  return (
+    <section className="page-section detail-page">
+      <div className="page-heading">
+        <div>
+          <span className="eyebrow">CRM STUDYCODE</span>
+          <h1>Alunos</h1>
+          <p>
+            Consulte cadastro, plano, progresso, sequência e atividade de IA.
+          </p>
+        </div>
+        <div className="action-row">
+          <input
+            className="directory-search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar nome ou e-mail"
+          />
+          <button
+            className="button-quiet"
+            onClick={() =>
+              downloadCsv(
+                "alunos-studycode.csv",
+                [
+                  "Nome",
+                  "E-mail",
+                  "Plano",
+                  "XP",
+                  "Sequência",
+                  "Aulas",
+                  "Perguntas IA",
+                ],
+                filtered.map((student) => [
+                  student.name,
+                  student.email,
+                  student.plan_name,
+                  student.xp,
+                  student.streak_days,
+                  student.completed_lessons,
+                  student.ai_questions,
+                ]),
+              )
+            }
+          >
+            Exportar CSV
+          </button>
+          <button className="button-quiet" onClick={load}>
+            {loading ? "Atualizando..." : "Atualizar"}
+          </button>
+        </div>
+      </div>
+      <div className="student-table">
+        <div className="student-table-head">
+          <span>Aluno</span>
+          <span>Plano</span>
+          <span>Progresso</span>
+          <span>Atividade</span>
+        </div>
+        {filtered.map((student) => (
+          <button
+            className="student-row"
+            key={student.id}
+            onClick={() => openStudent(student)}
+          >
+            <span>
+              <strong>{student.name}</strong>
+              <small>{student.email}</small>
+            </span>
+            <span>{student.plan_name || "Sem plano"}</span>
+            <span>
+              {student.xp || 0} XP · {student.streak_days || 0} dias
+              <br />
+              <small>{student.completed_lessons || 0} aulas concluídas</small>
+            </span>
+            <span>
+              {student.ai_questions || 0} perguntas IA
+              <br />
+              <small>{student.active ? "Ativo" : "Desativado"}</small>
+            </span>
+          </button>
+        ))}
+      </div>
+      {!filtered.length && (
+        <div className="empty-card">
+          <h3>Nenhum aluno encontrado.</h3>
+          <p>Altere a busca ou aguarde novos cadastros do StudyCode.</p>
+        </div>
+      )}
+      {selected && (
+        <div className="detail-drawer student-detail-drawer">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">DETALHES DO ALUNO</span>
+              <h2>{selected.name}</h2>
+              <p>{selected.email}</p>
+            </div>
+            <div className="action-row">
+              <span
+                className={
+                  "status-pill " + (selected.active ? "available" : "planned")
+                }
+              >
+                {selected.active ? "Ativo" : "Desativado"}
+              </span>
+              <button
+                className="button-quiet"
+                onClick={() => {
+                  setSelected(null);
+                  setStudentDetail(null);
+                }}
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+          {detailLoading && (
+            <div className="loading-note">Carregando histórico completo...</div>
+          )}
+          {detail && (
+            <>
+              <div className="student-detail-grid">
+                <article>
+                  <small>Dados pessoais</small>
+                  <strong>{detail.phone || "Telefone não informado"}</strong>
+                  <span>
+                    {detail.birth_date || "Nascimento não informado"} ·{" "}
+                    {detail.city || "Cidade não informada"}
+                  </span>
+                </article>
+                <article>
+                  <small>Plano e evolução</small>
+                  <strong>{detail.plan_name || "Sem plano"}</strong>
+                  <span>
+                    {detail.xp || 0} XP · sequência de {detail.streak_days || 0}{" "}
+                    dias
+                  </span>
+                </article>
+                <article>
+                  <small>Trilha atual</small>
+                  <strong>{detail.current_track || "Nenhuma trilha"}</strong>
+                  <span>
+                    {
+                      studentDetail.progress.filter((item) => item.completed_at)
+                        .length
+                    }{" "}
+                    aulas concluídas
+                  </span>
+                </article>
+              </div>
+              <nav className="student-detail-tabs">
+                {tabs.map(([id, label]) => (
+                  <button
+                    key={id}
+                    className={detailTab === id ? "active" : ""}
+                    onClick={() => setDetailTab(id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </nav>
+              <div className="student-detail-content">
+                {detailTab === "profile" && (
+                  <div className="student-data-grid">
+                    <article>
+                      <small>E-mail</small>
+                      <strong>{detail.email}</strong>
+                    </article>
+                    <article>
+                      <small>País</small>
+                      <strong>{detail.country || "Não informado"}</strong>
+                    </article>
+                    <article>
+                      <small>Cadastro</small>
+                      <strong>{formatDate(detail.created_at)}</strong>
+                    </article>
+                    <article>
+                      <small>Último acesso</small>
+                      <strong>{formatDate(detail.last_active_at, true)}</strong>
+                    </article>
+                  </div>
+                )}
+                {detailTab === "progress" && (
+                  <div className="student-detail-table">
+                    {studentDetail.progress.map((item, index) => (
+                      <div key={item.lesson + index}>
+                        <span>
+                          <strong>{item.lesson}</strong>
+                          <small>
+                            {item.track_name || "Trilha"} ·{" "}
+                            {item.module_name || "Módulo"}
+                          </small>
+                        </span>
+                        <span>
+                          {item.completed_at
+                            ? "Concluída em " + formatDate(item.completed_at)
+                            : "Em andamento"}{" "}
+                          · {item.xp_earned || 0} XP
+                        </span>
+                      </div>
+                    ))}
+                    {!studentDetail.progress.length && (
+                      <small>Nenhum progresso registrado.</small>
+                    )}
+                  </div>
+                )}
+                {detailTab === "ai" && (
+                  <div className="student-detail-table">
+                    {studentDetail.aiHistory.map((item) => (
+                      <div key={item.id}>
+                        <span>
+                          <strong>
+                            {item.provider} / {item.model}
+                          </strong>
+                          <small>{item.question}</small>
+                        </span>
+                        <span>
+                          {item.tokens_used || 0} tokens ·{" "}
+                          {formatDate(item.created_at)}
+                        </span>
+                      </div>
+                    ))}
+                    {!studentDetail.aiHistory.length && (
+                      <small>Nenhuma pergunta registrada.</small>
+                    )}
+                  </div>
+                )}
+                {detailTab === "coins" && (
+                  <div className="student-detail-table">
+                    {studentDetail.coins.map((item) => (
+                      <div key={item.id}>
+                        <span>
+                          <strong
+                            className={
+                              item.amount > 0
+                                ? "coin-positive"
+                                : "coin-negative"
+                            }
+                          >
+                            {item.amount > 0 ? "+" : ""}
+                            {item.amount} CodeCoins
+                          </strong>
+                          <small>{item.reason}</small>
+                        </span>
+                        <span>{formatDate(item.created_at)}</span>
+                      </div>
+                    ))}
+                    {!studentDetail.coins.length && (
+                      <small>Nenhuma movimentação de CodeCoins.</small>
+                    )}
+                  </div>
+                )}
+                {detailTab === "certificates" && (
+                  <div className="student-detail-table">
+                    {studentDetail.certificates.map((item) => (
+                      <div key={item.certificate_code}>
+                        <span>
+                          <strong>{item.title}</strong>
+                          <small>{item.certificate_code}</small>
+                        </span>
+                        <span>
+                          {item.status} · {formatDate(item.issued_at)}
+                        </span>
+                      </div>
+                    ))}
+                    {!studentDetail.certificates.length && (
+                      <small>Nenhum certificado emitido.</small>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </section>
+  );
 }
 
 function PermissionsView({ token, onError }) {
-  const [admins, setAdmins] = useState([]); const [loading, setLoading] = useState(false);
-  async function load() { setLoading(true); try { setAdmins((await listarAdministradores(token)).admins); } catch (error) { onError(error.message); } finally { setLoading(false); } }
-  async function update(admin, payload) { try { const result = await atualizarAdministrador(token, admin.id, payload); setAdmins((items) => items.map((item) => item.id === admin.id ? result.admin : item)); } catch (error) { onError(error.message); } }
+  const [admins, setAdmins] = useState([]);
+  const [loading, setLoading] = useState(false);
+  async function load() {
+    setLoading(true);
+    try {
+      setAdmins((await listarAdministradores(token)).admins);
+    } catch (error) {
+      onError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+  async function update(admin, payload) {
+    try {
+      const result = await atualizarAdministrador(token, admin.id, payload);
+      setAdmins((items) =>
+        items.map((item) => (item.id === admin.id ? result.admin : item)),
+      );
+    } catch (error) {
+      onError(error.message);
+    }
+  }
   // Administrative users are loaded only inside the protected permissions page.
-  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [token]);
-  return <section className="page-section detail-page"><div className="page-heading"><div><span className="eyebrow">PERMISSÕES</span><h1>Equipe administrativa</h1><p>Defina quem pode administrar projetos, financeiro, suporte e dados do StudyCode.</p></div><button className="button-quiet" onClick={load}>{loading ? "Atualizando..." : "Atualizar"}</button></div><div className="permission-list admin-permission-list">{admins.map((admin) => <article key={admin.id}><div><strong>{admin.name}</strong><small>{admin.email} · {admin.active ? "Ativo" : "Desativado"}</small></div><select value={admin.role} onChange={(event) => update(admin, { role: event.target.value })}><option value="owner">Proprietário</option><option value="admin">Administrador</option><option value="editor">Editor</option><option value="finance">Financeiro</option><option value="support">Suporte</option></select><button className="button-quiet" onClick={() => update(admin, { active: !admin.active })}>{admin.active ? "Desativar" : "Ativar"}</button></article>)}</div>{!admins.length && <div className="empty-card"><h3>Nenhum administrador encontrado.</h3><p>O usuário proprietário será criado pelo bootstrap do servidor.</p></div>}</section>;
+   
+  useEffect(() => {
+    load();
+  }, [token]);
+  return (
+    <section className="page-section detail-page">
+      <div className="page-heading">
+        <div>
+          <span className="eyebrow">PERMISSÕES</span>
+          <h1>Equipe administrativa</h1>
+          <p>
+            Defina quem pode administrar projetos, financeiro, suporte e dados
+            do StudyCode.
+          </p>
+        </div>
+        <button className="button-quiet" onClick={load}>
+          {loading ? "Atualizando..." : "Atualizar"}
+        </button>
+      </div>
+      <div className="permission-list admin-permission-list">
+        {admins.map((admin) => (
+          <article key={admin.id}>
+            <div>
+              <strong>{admin.name}</strong>
+              <small>
+                {admin.email} · {admin.active ? "Ativo" : "Desativado"}
+              </small>
+            </div>
+            <select
+              value={admin.role}
+              onChange={(event) => update(admin, { role: event.target.value })}
+            >
+              <option value="owner">Proprietário</option>
+              <option value="admin">Administrador</option>
+              <option value="editor">Editor</option>
+              <option value="finance">Financeiro</option>
+              <option value="support">Suporte</option>
+            </select>
+            <button
+              className="button-quiet"
+              onClick={() => update(admin, { active: !admin.active })}
+            >
+              {admin.active ? "Desativar" : "Ativar"}
+            </button>
+          </article>
+        ))}
+      </div>
+      {!admins.length && (
+        <div className="empty-card">
+          <h3>Nenhum administrador encontrado.</h3>
+          <p>O usuário proprietário será criado pelo bootstrap do servidor.</p>
+        </div>
+      )}
+    </section>
+  );
 }
 
 function Overview({ projects, onOpen, onNew, token, onNavigate, onError }) {
-  return <><ControlTowerView token={token} onNavigate={onNavigate} onError={onError} /><OverviewContent projects={projects} onOpen={onOpen} onNew={onNew} /></>;
+  return (
+    <>
+      <ControlTowerView
+        token={token}
+        onNavigate={onNavigate}
+        onError={onError}
+      />
+      <OverviewContent projects={projects} onOpen={onOpen} onNew={onNew} />
+    </>
+  );
 }
 
-
-function StudyCodeContentManager({ project, token, tabs, tab, setTab, onBack, onError }) {
-  const [tracks, setTracks] = useState([]); const [selectedTrackId, setSelectedTrackId] = useState(null);
+function StudyCodeContentManager({
+  project,
+  token,
+  tabs,
+  tab,
+  setTab,
+  onBack,
+  onError,
+}) {
+  const [tracks, setTracks] = useState([]);
+  const [selectedTrackId, setSelectedTrackId] = useState(null);
   const [detail, setDetail] = useState(null);
-  const [trackDraft, setTrackDraft] = useState({ name: "", description: "", active: true });
-  const [newTrack, setNewTrack] = useState({ name: "", description: "" }); const [newModule, setNewModule] = useState("");
+  const [trackDraft, setTrackDraft] = useState({
+    name: "",
+    description: "",
+    active: true,
+  });
+  const [newTrack, setNewTrack] = useState({ name: "", description: "" });
+  const [newModule, setNewModule] = useState("");
   const [lessonDraft, setLessonDraft] = useState({ moduleId: null, name: "" });
   async function loadTracks(selectFirst = false) {
     try {
-      const result = await listarStudyCodeConteudo(token); setTracks(result.tracks);
-      if (selectFirst || !selectedTrackId) setSelectedTrackId(result.tracks[0]?.id || null);
-    } catch (error) { onError(error.message); }
+      const result = await listarStudyCodeConteudo(token);
+      setTracks(result.tracks);
+      if (selectFirst || !selectedTrackId)
+        setSelectedTrackId(result.tracks[0]?.id || null);
+    } catch (error) {
+      onError(error.message);
+    }
   }
   async function loadDetail(trackId = selectedTrackId) {
     if (!trackId) return;
-    try { const result = await detalharStudyCodeConteudo(token, trackId); setDetail(result); setTrackDraft({ name: result.track.name, description: result.track.description || "", active: result.track.active }); } catch (error) { onError(error.message); }
+    try {
+      const result = await detalharStudyCodeConteudo(token, trackId);
+      setDetail(result);
+      setTrackDraft({
+        name: result.track.name,
+        description: result.track.description || "",
+        active: result.track.active,
+      });
+    } catch (error) {
+      onError(error.message);
+    }
   }
   // Content is loaded from the protected administration API when the editor opens.
-  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
-  useEffect(() => { loadTracks(true); }, [token]);
-  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
-  useEffect(() => { loadDetail(); }, [selectedTrackId]);
-  async function saveTrack(event) { event.preventDefault(); try { await atualizarStudyCodeTrilha(token, selectedTrackId, trackDraft); await Promise.all([loadTracks(), loadDetail()]); } catch (error) { onError(error.message); } }
-  async function createTrack(event) { event.preventDefault(); if (!newTrack.name.trim()) return; try { const result = await criarStudyCodeTrilha(token, newTrack); setNewTrack({ name: "", description: "" }); await loadTracks(); setSelectedTrackId(result.track.id); } catch (error) { onError(error.message); } }
-  async function createModule(event) { event.preventDefault(); if (!newModule.trim() || !selectedTrackId) return; try { await criarStudyCodeModulo(token, { trackId: selectedTrackId, name: newModule }); setNewModule(""); await Promise.all([loadTracks(), loadDetail()]); } catch (error) { onError(error.message); } }
-  async function createLesson(event) { event.preventDefault(); if (!lessonDraft.name.trim()) return; try { await criarStudyCodeAula(token, lessonDraft); setLessonDraft({ moduleId: null, name: "" }); await Promise.all([loadTracks(), loadDetail()]); } catch (error) { onError(error.message); } }
-  async function toggleModule(item) { try { await atualizarStudyCodeModulo(token, item.id, { name: item.name, description: item.description, active: !item.active }); await loadDetail(); } catch (error) { onError(error.message); } }
-  async function toggleLesson(item) { try { await atualizarStudyCodeAula(token, item.id, { name: item.name, content: item.content, active: !item.active }); await loadDetail(); } catch (error) { onError(error.message); } }
-  async function toggleChallenge(item) { try { await atualizarStudyCodeDesafio(token, item.id, { name: item.name, statement: item.statement, difficulty: item.difficulty, active: !item.active }); await loadDetail(); } catch (error) { onError(error.message); } }
-  const modules = detail?.modules || []; const lessons = detail?.lessons || []; const challenges = detail?.challenges || [];
-  return <section className="project-workspace"><button className="back-link" onClick={onBack}>← Todos os projetos</button><div className="project-workspace-head"><div><span className="eyebrow">STUDYCODE · CONTEÚDO</span><h1>{project.name}</h1><p>Crie e organize trilhas, módulos, aulas e desafios que os alunos verão no aplicativo.</p></div><span className="status-pill available">Editor publicado</span></div><nav className="workspace-tabs studycode-tabs">{tabs.map(([id, label]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>{label}</button>)}</nav><div className="content-builder"><aside className="content-track-list"><div className="section-heading"><div><span className="eyebrow">CATÁLOGO</span><h2>Trilhas</h2></div><button className="button-quiet" onClick={() => setSelectedTrackId(null)}>Nova</button></div>{tracks.map((track) => <button key={track.id} className={"content-track-option " + (selectedTrackId === track.id ? "selected" : "")} onClick={() => setSelectedTrackId(track.id)}><strong>{track.name}</strong><small>{track.modules} módulos · {track.lessons} aulas</small><span className={"status-pill " + (track.active ? "available" : "planned")}>{track.active ? "Ativa" : "Rascunho"}</span></button>)}{!tracks.length && <p className="empty-inline">Nenhuma trilha criada.</p>}<form className="content-builder-form" onSubmit={createTrack}><strong>Nova trilha</strong><input value={newTrack.name} onChange={(event) => setNewTrack({ ...newTrack, name: event.target.value })} placeholder="Nome da trilha" /><textarea value={newTrack.description} onChange={(event) => setNewTrack({ ...newTrack, description: event.target.value })} placeholder="Descrição curta" rows="2" /><button className="button-primary">Criar trilha</button></form></aside>{selectedTrackId && detail ? <main className="content-track-editor"><form className="content-editor-card" onSubmit={saveTrack}><div className="section-heading"><div><span className="eyebrow">TRILHA SELECIONADA</span><h2>Informações da trilha</h2></div><button className="button-primary">Salvar trilha</button></div><div className="editor-grid"><label>Nome<input value={trackDraft.name} onChange={(event) => setTrackDraft({ ...trackDraft, name: event.target.value })} /></label><label>Status<select value={trackDraft.active ? "active" : "draft"} onChange={(event) => setTrackDraft({ ...trackDraft, active: event.target.value === "active" })}><option value="active">Publicada</option><option value="draft">Rascunho</option></select></label></div><label>Descrição<textarea value={trackDraft.description} onChange={(event) => setTrackDraft({ ...trackDraft, description: event.target.value })} rows="3" /></label></form><section className="content-editor-card"><div className="section-heading"><div><span className="eyebrow">ESTRUTURA</span><h2>{modules.length} módulos</h2><p>Adicione aulas e desafios dentro de cada módulo.</p></div><form className="inline-create-form" onSubmit={createModule}><input value={newModule} onChange={(event) => setNewModule(event.target.value)} placeholder="Novo módulo" /><button className="button-quiet">Adicionar</button></form></div><div className="content-tree">{modules.map((module) => <article className="content-tree-item" key={module.id}><div className="content-tree-heading"><div><strong>{module.name}</strong><small>{lessons.filter((item) => item.module_id === module.id).length} aula(s)</small></div><button className="button-quiet" type="button" onClick={() => toggleModule(module)}>{module.active ? "Desativar" : "Publicar"}</button></div>{lessons.filter((item) => item.module_id === module.id).map((lesson) => <div className="content-tree-child" key={lesson.id}><div><strong>{lesson.name}</strong><small>{challenges.filter((item) => item.lesson_id === lesson.id).length} desafio(s)</small></div><button className="button-quiet" type="button" onClick={() => toggleLesson(lesson)}>{lesson.active ? "Desativar" : "Publicar"}</button>{challenges.filter((item) => item.lesson_id === lesson.id).map((challenge) => <div className="content-tree-challenge" key={challenge.id}><span><strong>{challenge.name}</strong><small>{challenge.difficulty}</small></span><button className="button-quiet" type="button" onClick={() => toggleChallenge(challenge)}>{challenge.active ? "Desativar" : "Publicar"}</button></div>)}{lessonDraft.moduleId === module.id ? <form className="inline-create-form" onSubmit={createLesson}><input autoFocus value={lessonDraft.name} onChange={(event) => setLessonDraft({ ...lessonDraft, name: event.target.value })} placeholder="Nome da aula" /><button className="button-quiet">Salvar aula</button></form> : <button className="text-link-button" type="button" onClick={() => setLessonDraft({ moduleId: module.id, name: "" })}>+ Adicionar aula</button>}</div>)}{!lessons.some((item) => item.module_id === module.id) && <p className="empty-inline">Este módulo ainda não tem aulas.</p>}{lessons.filter((item) => item.module_id === module.id).length > 0 && <p className="content-hint">Para criar um desafio, abra a aula e use a opção abaixo.</p>}</article>)}</div></section></main> : <section className="content-editor-card content-empty-state"><h2>Crie ou selecione uma trilha</h2><p>Comece cadastrando a primeira trilha de aprendizado do StudyCode.</p></section>}</div></section>;
+   
+  useEffect(() => {
+    loadTracks(true);
+  }, [token]);
+   
+  useEffect(() => {
+    loadDetail();
+  }, [selectedTrackId]);
+  async function saveTrack(event) {
+    event.preventDefault();
+    try {
+      await atualizarStudyCodeTrilha(token, selectedTrackId, trackDraft);
+      await Promise.all([loadTracks(), loadDetail()]);
+    } catch (error) {
+      onError(error.message);
+    }
+  }
+  async function createTrack(event) {
+    event.preventDefault();
+    if (!newTrack.name.trim()) return;
+    try {
+      const result = await criarStudyCodeTrilha(token, newTrack);
+      setNewTrack({ name: "", description: "" });
+      await loadTracks();
+      setSelectedTrackId(result.track.id);
+    } catch (error) {
+      onError(error.message);
+    }
+  }
+  async function createModule(event) {
+    event.preventDefault();
+    if (!newModule.trim() || !selectedTrackId) return;
+    try {
+      await criarStudyCodeModulo(token, {
+        trackId: selectedTrackId,
+        name: newModule,
+      });
+      setNewModule("");
+      await Promise.all([loadTracks(), loadDetail()]);
+    } catch (error) {
+      onError(error.message);
+    }
+  }
+  async function createLesson(event) {
+    event.preventDefault();
+    if (!lessonDraft.name.trim()) return;
+    try {
+      await criarStudyCodeAula(token, lessonDraft);
+      setLessonDraft({ moduleId: null, name: "" });
+      await Promise.all([loadTracks(), loadDetail()]);
+    } catch (error) {
+      onError(error.message);
+    }
+  }
+  async function toggleModule(item) {
+    try {
+      await atualizarStudyCodeModulo(token, item.id, {
+        name: item.name,
+        description: item.description,
+        active: !item.active,
+      });
+      await loadDetail();
+    } catch (error) {
+      onError(error.message);
+    }
+  }
+  async function toggleLesson(item) {
+    try {
+      await atualizarStudyCodeAula(token, item.id, {
+        name: item.name,
+        content: item.content,
+        active: !item.active,
+      });
+      await loadDetail();
+    } catch (error) {
+      onError(error.message);
+    }
+  }
+  async function toggleChallenge(item) {
+    try {
+      await atualizarStudyCodeDesafio(token, item.id, {
+        name: item.name,
+        statement: item.statement,
+        difficulty: item.difficulty,
+        active: !item.active,
+      });
+      await loadDetail();
+    } catch (error) {
+      onError(error.message);
+    }
+  }
+  const modules = detail?.modules || [];
+  const lessons = detail?.lessons || [];
+  const challenges = detail?.challenges || [];
+  return (
+    <section className="project-workspace">
+      <button className="back-link" onClick={onBack}>
+        ← Todos os projetos
+      </button>
+      <div className="project-workspace-head">
+        <div>
+          <span className="eyebrow">STUDYCODE · CONTEÚDO</span>
+          <h1>{project.name}</h1>
+          <p>
+            Crie e organize trilhas, módulos, aulas e desafios que os alunos
+            verão no aplicativo.
+          </p>
+        </div>
+        <span className="status-pill available">Editor publicado</span>
+      </div>
+      <nav className="workspace-tabs studycode-tabs">
+        {tabs.map(([id, label]) => (
+          <button
+            key={id}
+            className={tab === id ? "active" : ""}
+            onClick={() => setTab(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+      <div className="content-builder">
+        <aside className="content-track-list">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">CATÁLOGO</span>
+              <h2>Trilhas</h2>
+            </div>
+            <button
+              className="button-quiet"
+              onClick={() => setSelectedTrackId(null)}
+            >
+              Nova
+            </button>
+          </div>
+          {tracks.map((track) => (
+            <button
+              key={track.id}
+              className={
+                "content-track-option " +
+                (selectedTrackId === track.id ? "selected" : "")
+              }
+              onClick={() => setSelectedTrackId(track.id)}
+            >
+              <strong>{track.name}</strong>
+              <small>
+                {track.modules} módulos · {track.lessons} aulas
+              </small>
+              <span
+                className={
+                  "status-pill " + (track.active ? "available" : "planned")
+                }
+              >
+                {track.active ? "Ativa" : "Rascunho"}
+              </span>
+            </button>
+          ))}
+          {!tracks.length && (
+            <p className="empty-inline">Nenhuma trilha criada.</p>
+          )}
+          <form className="content-builder-form" onSubmit={createTrack}>
+            <strong>Nova trilha</strong>
+            <input
+              value={newTrack.name}
+              onChange={(event) =>
+                setNewTrack({ ...newTrack, name: event.target.value })
+              }
+              placeholder="Nome da trilha"
+            />
+            <textarea
+              value={newTrack.description}
+              onChange={(event) =>
+                setNewTrack({ ...newTrack, description: event.target.value })
+              }
+              placeholder="Descrição curta"
+              rows="2"
+            />
+            <button className="button-primary">Criar trilha</button>
+          </form>
+        </aside>
+        {selectedTrackId && detail ? (
+          <main className="content-track-editor">
+            <form className="content-editor-card" onSubmit={saveTrack}>
+              <div className="section-heading">
+                <div>
+                  <span className="eyebrow">TRILHA SELECIONADA</span>
+                  <h2>Informações da trilha</h2>
+                </div>
+                <button className="button-primary">Salvar trilha</button>
+              </div>
+              <div className="editor-grid">
+                <label>
+                  Nome
+                  <input
+                    value={trackDraft.name}
+                    onChange={(event) =>
+                      setTrackDraft({ ...trackDraft, name: event.target.value })
+                    }
+                  />
+                </label>
+                <label>
+                  Status
+                  <select
+                    value={trackDraft.active ? "active" : "draft"}
+                    onChange={(event) =>
+                      setTrackDraft({
+                        ...trackDraft,
+                        active: event.target.value === "active",
+                      })
+                    }
+                  >
+                    <option value="active">Publicada</option>
+                    <option value="draft">Rascunho</option>
+                  </select>
+                </label>
+              </div>
+              <label>
+                Descrição
+                <textarea
+                  value={trackDraft.description}
+                  onChange={(event) =>
+                    setTrackDraft({
+                      ...trackDraft,
+                      description: event.target.value,
+                    })
+                  }
+                  rows="3"
+                />
+              </label>
+            </form>
+            <section className="content-editor-card">
+              <div className="section-heading">
+                <div>
+                  <span className="eyebrow">ESTRUTURA</span>
+                  <h2>{modules.length} módulos</h2>
+                  <p>Adicione aulas e desafios dentro de cada módulo.</p>
+                </div>
+                <form className="inline-create-form" onSubmit={createModule}>
+                  <input
+                    value={newModule}
+                    onChange={(event) => setNewModule(event.target.value)}
+                    placeholder="Novo módulo"
+                  />
+                  <button className="button-quiet">Adicionar</button>
+                </form>
+              </div>
+              <div className="content-tree">
+                {modules.map((module) => (
+                  <article className="content-tree-item" key={module.id}>
+                    <div className="content-tree-heading">
+                      <div>
+                        <strong>{module.name}</strong>
+                        <small>
+                          {
+                            lessons.filter(
+                              (item) => item.module_id === module.id,
+                            ).length
+                          }{" "}
+                          aula(s)
+                        </small>
+                      </div>
+                      <button
+                        className="button-quiet"
+                        type="button"
+                        onClick={() => toggleModule(module)}
+                      >
+                        {module.active ? "Desativar" : "Publicar"}
+                      </button>
+                    </div>
+                    {lessons
+                      .filter((item) => item.module_id === module.id)
+                      .map((lesson) => (
+                        <div className="content-tree-child" key={lesson.id}>
+                          <div>
+                            <strong>{lesson.name}</strong>
+                            <small>
+                              {
+                                challenges.filter(
+                                  (item) => item.lesson_id === lesson.id,
+                                ).length
+                              }{" "}
+                              desafio(s)
+                            </small>
+                          </div>
+                          <button
+                            className="button-quiet"
+                            type="button"
+                            onClick={() => toggleLesson(lesson)}
+                          >
+                            {lesson.active ? "Desativar" : "Publicar"}
+                          </button>
+                          {challenges
+                            .filter((item) => item.lesson_id === lesson.id)
+                            .map((challenge) => (
+                              <div
+                                className="content-tree-challenge"
+                                key={challenge.id}
+                              >
+                                <span>
+                                  <strong>{challenge.name}</strong>
+                                  <small>{challenge.difficulty}</small>
+                                </span>
+                                <button
+                                  className="button-quiet"
+                                  type="button"
+                                  onClick={() => toggleChallenge(challenge)}
+                                >
+                                  {challenge.active ? "Desativar" : "Publicar"}
+                                </button>
+                              </div>
+                            ))}
+                          {lessonDraft.moduleId === module.id ? (
+                            <form
+                              className="inline-create-form"
+                              onSubmit={createLesson}
+                            >
+                              <input
+                                autoFocus
+                                value={lessonDraft.name}
+                                onChange={(event) =>
+                                  setLessonDraft({
+                                    ...lessonDraft,
+                                    name: event.target.value,
+                                  })
+                                }
+                                placeholder="Nome da aula"
+                              />
+                              <button className="button-quiet">
+                                Salvar aula
+                              </button>
+                            </form>
+                          ) : (
+                            <button
+                              className="text-link-button"
+                              type="button"
+                              onClick={() =>
+                                setLessonDraft({
+                                  moduleId: module.id,
+                                  name: "",
+                                })
+                              }
+                            >
+                              + Adicionar aula
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    {!lessons.some((item) => item.module_id === module.id) && (
+                      <p className="empty-inline">
+                        Este módulo ainda não tem aulas.
+                      </p>
+                    )}
+                    {lessons.filter((item) => item.module_id === module.id)
+                      .length > 0 && (
+                      <p className="content-hint">
+                        Para criar um desafio, abra a aula e use a opção abaixo.
+                      </p>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </section>
+          </main>
+        ) : (
+          <section className="content-editor-card content-empty-state">
+            <h2>Crie ou selecione uma trilha</h2>
+            <p>
+              Comece cadastrando a primeira trilha de aprendizado do StudyCode.
+            </p>
+          </section>
+        )}
+      </div>
+    </section>
+  );
 }
 StudyCodeContentManager.displayName = "StudyCodeContentManagerLegacy";
 
-function StudyCodeWorkspace({ project, token: providedToken, onBack, setError: externalSetError }) {
-  const token = providedToken || (() => { try { return JSON.parse(localStorage.getItem("vm_nexus_session") || "{}").token; } catch { return null; } })();
+function StudyCodeWorkspace({
+  project,
+  token: providedToken,
+  onBack,
+  setError: externalSetError,
+}) {
+  const token =
+    providedToken ||
+    (() => {
+      try {
+        return JSON.parse(localStorage.getItem("vm_nexus_session") || "{}")
+          .token;
+      } catch {
+        return null;
+      }
+    })();
   const setError = externalSetError || (() => {});
-  const [tab, setTab] = useState("students"); const [students, setStudents] = useState([]); const [studentDetail, setStudentDetail] = useState(null); const [content, setContent] = useState([]); const [ai, setAi] = useState({ limits: [], history: [] }); const [analytics, setAnalytics] = useState({ summary: {}, activity: [] }); const [community, setCommunity] = useState({ posts: [], feedback: [] }); const [economy, setEconomy] = useState({ coins: [], certificates: [] }); const [loading, setLoading] = useState(false);
-  const tabs = [["project-details", "Detalhes do projeto"], ["project-roadmap", "Roadmap"], ["project-deploys", "Deploys"], ["project-templates", "Templates"], ["project-permissions", "Permissões"], ["students", "Alunos"], ["content", "Conteúdo"], ["ai", "IA"], ["analytics", "Analytics"], ["community", "Fórum e comunidade"], ["economy", "CodeCoins e certificados"]];
-  async function loadTab(nextTab = tab) { setLoading(true); try { if (nextTab === "students") setStudents((await listarStudyCodeAlunos(token)).students); if (nextTab === "content") setContent((await listarStudyCodeConteudo(token)).tracks); if (nextTab === "ai") setAi(await listarStudyCodeIA(token)); if (nextTab === "analytics") setAnalytics(await listarStudyCodeAnalytics(token)); if (nextTab === "community") setCommunity(await listarStudyCodeComunidade(token)); if (nextTab === "economy") setEconomy(await listarStudyCodeEconomia(token)); } catch (err) { setError(err.message); } finally { setLoading(false); } }
+  const [tab, setTab] = useState("students");
+  const [students, setStudents] = useState([]);
+  const [studentDetail, setStudentDetail] = useState(null);
+  const [content, setContent] = useState([]);
+  const [ai, setAi] = useState({ limits: [], history: [] });
+  const [analytics, setAnalytics] = useState({ summary: {}, activity: [] });
+  const [community, setCommunity] = useState({ posts: [], feedback: [] });
+  const [economy, setEconomy] = useState({ coins: [], certificates: [] });
+  const [loading, setLoading] = useState(false);
+  const tabs = [
+    ["project-details", "Detalhes do projeto"],
+    ["project-roadmap", "Roadmap"],
+    ["project-deploys", "Deploys"],
+    ["project-templates", "Templates"],
+    ["project-permissions", "Permissões"],
+    ["students", "Alunos"],
+    ["content", "Conteúdo"],
+    ["ai", "IA"],
+    ["analytics", "Analytics"],
+    ["community", "Fórum e comunidade"],
+    ["economy", "CodeCoins e certificados"],
+  ];
+  async function loadTab(nextTab = tab) {
+    setLoading(true);
+    try {
+      if (nextTab === "students")
+        setStudents((await listarStudyCodeAlunos(token)).students);
+      if (nextTab === "content")
+        setContent((await listarStudyCodeConteudo(token)).tracks);
+      if (nextTab === "ai") setAi(await listarStudyCodeIA(token));
+      if (nextTab === "analytics")
+        setAnalytics(await listarStudyCodeAnalytics(token));
+      if (nextTab === "community")
+        setCommunity(await listarStudyCodeComunidade(token));
+      if (nextTab === "economy")
+        setEconomy(await listarStudyCodeEconomia(token));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
   // Loading the selected administration module is an external data synchronization.
-  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
-  useEffect(() => { loadTab(tab); }, [tab]);
-  if (tab.startsWith("project-")) { const mode = tab.replace("project-", ""); return <section className="project-workspace"><button className="back-link" onClick={onBack}>← Todos os projetos</button><div className="project-workspace-head"><div><span className="eyebrow">STUDYCODE</span><h1>{project.name}</h1><p>Gestão do produto e permissões administrativas.</p></div><span className="status-pill available">Workspace</span></div><nav className="workspace-tabs studycode-tabs">{tabs.map(([id, label]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>{label}</button>)}</nav><ProjectManagementPanel project={project} mode={mode} /></section>; }
-  if (tab === "content") return <StudyCodeContentEditor project={project} token={token} tabs={tabs} tab={tab} setTab={setTab} onBack={onBack} onError={setError} />;
-  if (tab === "ai") return <StudyCodeAiManager project={project} token={token} tabs={tabs} tab={tab} setTab={setTab} onBack={onBack} onError={setError} />;
-  if (tab === "community") return <StudyCodeCommunityManager project={project} token={token} tabs={tabs} tab={tab} setTab={setTab} onBack={onBack} onError={setError} />;
-  async function openStudent(student) { try { setStudentDetail((await detalharStudyCodeAluno(token, student.id))); } catch (err) { setError(err.message); } }
-  async function moderatePost(post, status) { try { await moderarStudyCodePost(token, post.id, { status }); await loadTab("community"); } catch (err) { setError(err.message); } }
-  async function updateFeedback(item, status) { try { await atualizarStudyCodeFeedback(token, item.id, status); await loadTab("community"); } catch (err) { setError(err.message); } }
+   
+  useEffect(() => {
+    loadTab(tab);
+  }, [tab]);
+  if (tab.startsWith("project-")) {
+    const mode = tab.replace("project-", "");
+    return (
+      <section className="project-workspace">
+        <button className="back-link" onClick={onBack}>
+          ← Todos os projetos
+        </button>
+        <div className="project-workspace-head">
+          <div>
+            <span className="eyebrow">STUDYCODE</span>
+            <h1>{project.name}</h1>
+            <p>Gestão do produto e permissões administrativas.</p>
+          </div>
+          <span className="status-pill available">Workspace</span>
+        </div>
+        <nav className="workspace-tabs studycode-tabs">
+          {tabs.map(([id, label]) => (
+            <button
+              key={id}
+              className={tab === id ? "active" : ""}
+              onClick={() => setTab(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+        <ProjectManagementPanel project={project} mode={mode} />
+      </section>
+    );
+  }
+  if (tab === "content")
+    return (
+      <StudyCodeContentEditor
+        project={project}
+        token={token}
+        tabs={tabs}
+        tab={tab}
+        setTab={setTab}
+        onBack={onBack}
+        onError={setError}
+      />
+    );
+  if (tab === "ai")
+    return (
+      <StudyCodeAiManager
+        project={project}
+        token={token}
+        tabs={tabs}
+        tab={tab}
+        setTab={setTab}
+        onBack={onBack}
+        onError={setError}
+      />
+    );
+  if (tab === "community")
+    return (
+      <StudyCodeCommunityManager
+        project={project}
+        token={token}
+        tabs={tabs}
+        tab={tab}
+        setTab={setTab}
+        onBack={onBack}
+        onError={setError}
+      />
+    );
+  async function openStudent(student) {
+    try {
+      setStudentDetail(await detalharStudyCodeAluno(token, student.id));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+  async function moderatePost(post, status) {
+    try {
+      await moderarStudyCodePost(token, post.id, { status });
+      await loadTab("community");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+  async function updateFeedback(item, status) {
+    try {
+      await atualizarStudyCodeFeedback(token, item.id, status);
+      await loadTab("community");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
   const summary = analytics.summary || {};
-  return <section className="project-workspace"><button className="back-link" onClick={onBack}>← Todos os projetos</button><div className="project-workspace-head"><div><span className="eyebrow">STUDYCODE</span><h1>{project.name}</h1><p>Gestão dos alunos, conteúdo, IA, comunidade e evolução da plataforma.</p></div><span className="status-pill available">Módulos administrativos</span></div><nav className="workspace-tabs studycode-tabs">{tabs.map(([id, label]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>{label}</button>)}</nav>{loading && <div className="loading-note">Atualizando dados...</div>}{tab === "students" && <section className="workspace-panel studycode-panel"><div className="section-heading"><div><span className="eyebrow">GESTÃO DE ALUNOS</span><h2>Alunos cadastrados</h2><p>Dados de acesso, plano, XP, sequência, trilha atual e uso da IA.</p></div><button className="button-quiet" onClick={() => loadTab("students")}>Atualizar</button></div><div className="student-table"><div className="student-table-head"><span>Aluno</span><span>Plano</span><span>Progresso</span><span>Atividade</span></div>{students.map((student) => <button className="student-row" key={student.id} onClick={() => openStudent(student)}><span><strong>{student.name}</strong><small>{student.email}{student.city ? ` · ${student.city}` : ""}</small></span><span>{student.plan_name || "Sem plano"}</span><span>{student.xp || 0} XP · {student.streak_days || 0} dias<br /><small>{student.completed_lessons || 0} aulas concluídas</small></span><span>{student.ai_questions || 0} perguntas IA<br /><small>{student.active ? "Ativo" : "Desativado"}</small></span></button>)}</div>{!students.length && <div className="empty-card"><h3>Nenhum aluno cadastrado.</h3><p>Quando o StudyCode receber cadastros, eles aparecerão aqui.</p></div>}{studentDetail && <div className="detail-drawer"><div className="section-heading"><div><span className="eyebrow">DETALHES DO ALUNO</span><h2>{studentDetail.student.name}</h2><p>{studentDetail.student.email}</p></div><button className="button-quiet" onClick={() => setStudentDetail(null)}>Fechar</button></div><div className="student-detail-grid"><article><small>Dados pessoais</small><strong>{studentDetail.student.phone || "Telefone não informado"}</strong><span>{studentDetail.student.birth_date || "Nascimento não informado"} · {studentDetail.student.city || "Cidade não informada"}</span></article><article><small>Plano e evolução</small><strong>{studentDetail.student.plan_name || "Sem plano"}</strong><span>{studentDetail.student.xp || 0} XP · sequência de {studentDetail.student.streak_days || 0} dias</span></article><article><small>Trilha atual</small><strong>{studentDetail.student.current_track || "Nenhuma trilha"}</strong><span>{studentDetail.progress.filter((item) => item.completed_at).length} aulas concluídas</span></article></div><h3>Histórico de IA</h3><div className="mini-list">{studentDetail.aiHistory.slice(0, 8).map((item) => <div key={item.id}><strong>{item.model}</strong><span>{item.question}</span></div>)}{!studentDetail.aiHistory.length && <small>Nenhuma pergunta registrada.</small>}</div><h3>CodeCoins e certificados</h3><div className="mini-list">{studentDetail.coins.slice(0, 8).map((item) => <div key={item.id}><strong>{item.amount > 0 ? "+" : ""}{item.amount} coins</strong><span>{item.reason}</span></div>)}{studentDetail.certificates.map((item) => <div key={item.certificate_code}><strong>Certificado</strong><span>{item.title} · {item.certificate_code}</span></div>)}</div></div>}</section>}{tab === "content" && <section className="workspace-panel studycode-panel"><div className="section-heading"><div><span className="eyebrow">CONTEÚDO</span><h2>Trilhas, módulos e aulas</h2><p>Visão geral do conteúdo e dos desafios publicados.</p></div></div><div className="content-cards">{content.map((track) => <article className="content-card" key={track.id}><span className="eyebrow">TRILHA</span><h3>{track.name}</h3><p>{track.description || "Sem descrição cadastrada."}</p><div className="tag-row"><span>{track.modules} módulos</span><span>{track.lessons} aulas</span><span>{track.challenges} desafios</span></div><button className="button-quiet">Editar trilha</button></article>)}</div>{!content.length && <div className="empty-card"><h3>Nenhuma trilha cadastrada.</h3><p>A estrutura está pronta para receber trilhas, módulos, aulas e desafios.</p></div>}</section>}{tab === "ai" && <section className="workspace-panel studycode-panel"><div className="section-heading"><div><span className="eyebrow">INTELIGÊNCIA ARTIFICIAL</span><h2>Limites e histórico de perguntas</h2><p>Veja qual modelo está sendo usado e quanto cada plano pode consumir.</p></div></div><div className="content-cards">{ai.limits.map((limit) => <article className="content-card" key={limit.id}><span className="eyebrow">PLANO</span><h3>{limit.name}</h3><strong>{limit.daily_limit} perguntas/dia</strong><button className="button-quiet">Editar limite</button></article>)}</div><div className="student-table"><div className="student-table-head"><span>Aluno</span><span>Modelo</span><span>Pergunta</span><span>Data</span></div>{ai.history.map((item) => <div className="student-row" key={item.id}><span><strong>{item.student_name || "Aluno removido"}</strong><small>{item.student_email || ""}</small></span><span>{item.provider} / {item.model}</span><span>{item.question}</span><span>{new Date(item.created_at).toLocaleDateString("pt-BR")}</span></div>)}</div></section>}{tab === "analytics" && <section className="workspace-panel studycode-panel"><div className="section-heading"><div><span className="eyebrow">ANALYTICS</span><h2>Evolução do StudyCode</h2><p>Acompanhe usuários ativos, aulas concluídas e uso da plataforma.</p></div><button className="button-quiet" onClick={() => loadTab("analytics")}>Atualizar</button></div><div className="overview-grid"><article><small>Usuários</small><strong>{summary.total_users || 0}</strong><span>{summary.active_users || 0} ativos</span></article><article><small>Ativos em 30 dias</small><strong>{summary.active_last_30_days || 0}</strong><span>usuários recorrentes</span></article><article><small>Aulas concluídas</small><strong>{summary.completed_lessons || 0}</strong><span>progresso registrado</span></article><article><small>XP acumulado</small><strong>{summary.total_xp || 0}</strong><span>{summary.total_ai_questions || 0} perguntas IA</span></article></div><div className="activity-list">{analytics.activity.map((item) => <div key={item.day}><strong>{new Date(item.day).toLocaleDateString("pt-BR")}</strong><span>{item.users} usuário(s) ativos</span></div>)}{!analytics.activity.length && <div className="empty-card">Ainda não há atividade registrada.</div>}</div></section>}{tab === "community" && <section className="workspace-panel studycode-panel"><div className="section-heading"><div><span className="eyebrow">FÓRUM E COMUNIDADE</span><h2>Conversas, reclamações e sugestões</h2><p>Leia as publicações dos alunos e modere o que deve aparecer na comunidade.</p></div></div><div className="community-columns"><div><h3>Publicações</h3>{community.posts.map((post) => <article className="community-card" key={post.id}><div><strong>{post.title}</strong><small>{post.student_name || "Aluno removido"} · {post.comments} comentário(s)</small></div><p>{post.body}</p><div className="action-row"><span className="status-pill">{post.status}</span><button className="button-quiet" onClick={() => moderatePost(post, post.status === "hidden" ? "published" : "hidden")}>{post.status === "hidden" ? "Publicar" : "Ocultar"}</button></div></article>)}{!community.posts.length && <div className="empty-card">Nenhuma publicação na comunidade.</div>}</div><div><h3>Reclamações e sugestões</h3>{community.feedback.map((item) => <article className="community-card" key={item.id}><div><strong>{item.subject}</strong><small>{item.type} · {item.student_name || "Aluno removido"}</small></div><p>{item.body}</p><select value={item.status} onChange={(event) => updateFeedback(item, event.target.value)}><option value="open">Aberto</option><option value="in_progress">Em andamento</option><option value="resolved">Resolvido</option><option value="closed">Fechado</option></select></article>)}{!community.feedback.length && <div className="empty-card">Nenhuma reclamação ou sugestão registrada.</div>}</div></div></section>}{tab === "economy" && <section className="workspace-panel studycode-panel"><div className="section-heading"><div><span className="eyebrow">ECONOMIA DO STUDYCODE</span><h2>CodeCoins e certificados</h2><p>Acompanhe recompensas, saldo movimentado e certificados emitidos.</p></div></div><div className="community-columns"><div><h3>Movimentações de CodeCoins</h3><div className="mini-list">{economy.coins.map((item) => <div key={item.id}><strong>{item.amount > 0 ? "+" : ""}{item.amount}</strong><span>{item.student_name} · {item.reason}</span></div>)}</div></div><div><h3>Certificados</h3><div className="mini-list">{economy.certificates.map((item) => <div key={item.id}><strong>{item.title}</strong><span>{item.student_name} · {item.certificate_code}</span></div>)}</div></div></div></section>}</section>;
+  return (
+    <section className="project-workspace">
+      <button className="back-link" onClick={onBack}>
+        ← Todos os projetos
+      </button>
+      <div className="project-workspace-head">
+        <div>
+          <span className="eyebrow">STUDYCODE</span>
+          <h1>{project.name}</h1>
+          <p>
+            Gestão dos alunos, conteúdo, IA, comunidade e evolução da
+            plataforma.
+          </p>
+        </div>
+        <span className="status-pill available">Módulos administrativos</span>
+      </div>
+      <nav className="workspace-tabs studycode-tabs">
+        {tabs.map(([id, label]) => (
+          <button
+            key={id}
+            className={tab === id ? "active" : ""}
+            onClick={() => setTab(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+      {loading && <div className="loading-note">Atualizando dados...</div>}
+      {tab === "students" && (
+        <section className="workspace-panel studycode-panel">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">GESTÃO DE ALUNOS</span>
+              <h2>Alunos cadastrados</h2>
+              <p>
+                Dados de acesso, plano, XP, sequência, trilha atual e uso da IA.
+              </p>
+            </div>
+            <button
+              className="button-quiet"
+              onClick={() => loadTab("students")}
+            >
+              Atualizar
+            </button>
+          </div>
+          <div className="student-table">
+            <div className="student-table-head">
+              <span>Aluno</span>
+              <span>Plano</span>
+              <span>Progresso</span>
+              <span>Atividade</span>
+            </div>
+            {students.map((student) => (
+              <button
+                className="student-row"
+                key={student.id}
+                onClick={() => openStudent(student)}
+              >
+                <span>
+                  <strong>{student.name}</strong>
+                  <small>
+                    {student.email}
+                    {student.city ? ` · ${student.city}` : ""}
+                  </small>
+                </span>
+                <span>{student.plan_name || "Sem plano"}</span>
+                <span>
+                  {student.xp || 0} XP · {student.streak_days || 0} dias
+                  <br />
+                  <small>
+                    {student.completed_lessons || 0} aulas concluídas
+                  </small>
+                </span>
+                <span>
+                  {student.ai_questions || 0} perguntas IA
+                  <br />
+                  <small>{student.active ? "Ativo" : "Desativado"}</small>
+                </span>
+              </button>
+            ))}
+          </div>
+          {!students.length && (
+            <div className="empty-card">
+              <h3>Nenhum aluno cadastrado.</h3>
+              <p>Quando o StudyCode receber cadastros, eles aparecerão aqui.</p>
+            </div>
+          )}
+          {studentDetail && (
+            <div className="detail-drawer">
+              <div className="section-heading">
+                <div>
+                  <span className="eyebrow">DETALHES DO ALUNO</span>
+                  <h2>{studentDetail.student.name}</h2>
+                  <p>{studentDetail.student.email}</p>
+                </div>
+                <button
+                  className="button-quiet"
+                  onClick={() => setStudentDetail(null)}
+                >
+                  Fechar
+                </button>
+              </div>
+              <div className="student-detail-grid">
+                <article>
+                  <small>Dados pessoais</small>
+                  <strong>
+                    {studentDetail.student.phone || "Telefone não informado"}
+                  </strong>
+                  <span>
+                    {studentDetail.student.birth_date ||
+                      "Nascimento não informado"}{" "}
+                    · {studentDetail.student.city || "Cidade não informada"}
+                  </span>
+                </article>
+                <article>
+                  <small>Plano e evolução</small>
+                  <strong>
+                    {studentDetail.student.plan_name || "Sem plano"}
+                  </strong>
+                  <span>
+                    {studentDetail.student.xp || 0} XP · sequência de{" "}
+                    {studentDetail.student.streak_days || 0} dias
+                  </span>
+                </article>
+                <article>
+                  <small>Trilha atual</small>
+                  <strong>
+                    {studentDetail.student.current_track || "Nenhuma trilha"}
+                  </strong>
+                  <span>
+                    {
+                      studentDetail.progress.filter((item) => item.completed_at)
+                        .length
+                    }{" "}
+                    aulas concluídas
+                  </span>
+                </article>
+              </div>
+              <h3>Histórico de IA</h3>
+              <div className="mini-list">
+                {studentDetail.aiHistory.slice(0, 8).map((item) => (
+                  <div key={item.id}>
+                    <strong>{item.model}</strong>
+                    <span>{item.question}</span>
+                  </div>
+                ))}
+                {!studentDetail.aiHistory.length && (
+                  <small>Nenhuma pergunta registrada.</small>
+                )}
+              </div>
+              <h3>CodeCoins e certificados</h3>
+              <div className="mini-list">
+                {studentDetail.coins.slice(0, 8).map((item) => (
+                  <div key={item.id}>
+                    <strong>
+                      {item.amount > 0 ? "+" : ""}
+                      {item.amount} coins
+                    </strong>
+                    <span>{item.reason}</span>
+                  </div>
+                ))}
+                {studentDetail.certificates.map((item) => (
+                  <div key={item.certificate_code}>
+                    <strong>Certificado</strong>
+                    <span>
+                      {item.title} · {item.certificate_code}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+      {tab === "content" && (
+        <section className="workspace-panel studycode-panel">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">CONTEÚDO</span>
+              <h2>Trilhas, módulos e aulas</h2>
+              <p>Visão geral do conteúdo e dos desafios publicados.</p>
+            </div>
+          </div>
+          <div className="content-cards">
+            {content.map((track) => (
+              <article className="content-card" key={track.id}>
+                <span className="eyebrow">TRILHA</span>
+                <h3>{track.name}</h3>
+                <p>{track.description || "Sem descrição cadastrada."}</p>
+                <div className="tag-row">
+                  <span>{track.modules} módulos</span>
+                  <span>{track.lessons} aulas</span>
+                  <span>{track.challenges} desafios</span>
+                </div>
+                <button className="button-quiet">Editar trilha</button>
+              </article>
+            ))}
+          </div>
+          {!content.length && (
+            <div className="empty-card">
+              <h3>Nenhuma trilha cadastrada.</h3>
+              <p>
+                A estrutura está pronta para receber trilhas, módulos, aulas e
+                desafios.
+              </p>
+            </div>
+          )}
+        </section>
+      )}
+      {tab === "ai" && (
+        <section className="workspace-panel studycode-panel">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">INTELIGÊNCIA ARTIFICIAL</span>
+              <h2>Limites e histórico de perguntas</h2>
+              <p>
+                Veja qual modelo está sendo usado e quanto cada plano pode
+                consumir.
+              </p>
+            </div>
+          </div>
+          <div className="content-cards">
+            {ai.limits.map((limit) => (
+              <article className="content-card" key={limit.id}>
+                <span className="eyebrow">PLANO</span>
+                <h3>{limit.name}</h3>
+                <strong>{limit.daily_limit} perguntas/dia</strong>
+                <button className="button-quiet">Editar limite</button>
+              </article>
+            ))}
+          </div>
+          <div className="student-table">
+            <div className="student-table-head">
+              <span>Aluno</span>
+              <span>Modelo</span>
+              <span>Pergunta</span>
+              <span>Data</span>
+            </div>
+            {ai.history.map((item) => (
+              <div className="student-row" key={item.id}>
+                <span>
+                  <strong>{item.student_name || "Aluno removido"}</strong>
+                  <small>{item.student_email || ""}</small>
+                </span>
+                <span>
+                  {item.provider} / {item.model}
+                </span>
+                <span>{item.question}</span>
+                <span>
+                  {new Date(item.created_at).toLocaleDateString("pt-BR")}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+      {tab === "analytics" && (
+        <section className="workspace-panel studycode-panel">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">ANALYTICS</span>
+              <h2>Evolução do StudyCode</h2>
+              <p>
+                Acompanhe usuários ativos, aulas concluídas e uso da plataforma.
+              </p>
+            </div>
+            <button
+              className="button-quiet"
+              onClick={() => loadTab("analytics")}
+            >
+              Atualizar
+            </button>
+          </div>
+          <div className="overview-grid">
+            <article>
+              <small>Usuários</small>
+              <strong>{summary.total_users || 0}</strong>
+              <span>{summary.active_users || 0} ativos</span>
+            </article>
+            <article>
+              <small>Ativos em 30 dias</small>
+              <strong>{summary.active_last_30_days || 0}</strong>
+              <span>usuários recorrentes</span>
+            </article>
+            <article>
+              <small>Aulas concluídas</small>
+              <strong>{summary.completed_lessons || 0}</strong>
+              <span>progresso registrado</span>
+            </article>
+            <article>
+              <small>XP acumulado</small>
+              <strong>{summary.total_xp || 0}</strong>
+              <span>{summary.total_ai_questions || 0} perguntas IA</span>
+            </article>
+          </div>
+          <div className="activity-list">
+            {analytics.activity.map((item) => (
+              <div key={item.day}>
+                <strong>
+                  {new Date(item.day).toLocaleDateString("pt-BR")}
+                </strong>
+                <span>{item.users} usuário(s) ativos</span>
+              </div>
+            ))}
+            {!analytics.activity.length && (
+              <div className="empty-card">
+                Ainda não há atividade registrada.
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+      {tab === "community" && (
+        <section className="workspace-panel studycode-panel">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">FÓRUM E COMUNIDADE</span>
+              <h2>Conversas, reclamações e sugestões</h2>
+              <p>
+                Leia as publicações dos alunos e modere o que deve aparecer na
+                comunidade.
+              </p>
+            </div>
+          </div>
+          <div className="community-columns">
+            <div>
+              <h3>Publicações</h3>
+              {community.posts.map((post) => (
+                <article className="community-card" key={post.id}>
+                  <div>
+                    <strong>{post.title}</strong>
+                    <small>
+                      {post.student_name || "Aluno removido"} · {post.comments}{" "}
+                      comentário(s)
+                    </small>
+                  </div>
+                  <p>{post.body}</p>
+                  <div className="action-row">
+                    <span className="status-pill">{post.status}</span>
+                    <button
+                      className="button-quiet"
+                      onClick={() =>
+                        moderatePost(
+                          post,
+                          post.status === "hidden" ? "published" : "hidden",
+                        )
+                      }
+                    >
+                      {post.status === "hidden" ? "Publicar" : "Ocultar"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+              {!community.posts.length && (
+                <div className="empty-card">
+                  Nenhuma publicação na comunidade.
+                </div>
+              )}
+            </div>
+            <div>
+              <h3>Reclamações e sugestões</h3>
+              {community.feedback.map((item) => (
+                <article className="community-card" key={item.id}>
+                  <div>
+                    <strong>{item.subject}</strong>
+                    <small>
+                      {item.type} · {item.student_name || "Aluno removido"}
+                    </small>
+                  </div>
+                  <p>{item.body}</p>
+                  <select
+                    value={item.status}
+                    onChange={(event) =>
+                      updateFeedback(item, event.target.value)
+                    }
+                  >
+                    <option value="open">Aberto</option>
+                    <option value="in_progress">Em andamento</option>
+                    <option value="resolved">Resolvido</option>
+                    <option value="closed">Fechado</option>
+                  </select>
+                </article>
+              ))}
+              {!community.feedback.length && (
+                <div className="empty-card">
+                  Nenhuma reclamação ou sugestão registrada.
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+      {tab === "economy" && (
+        <section className="workspace-panel studycode-panel">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">ECONOMIA DO STUDYCODE</span>
+              <h2>CodeCoins e certificados</h2>
+              <p>
+                Acompanhe recompensas, saldo movimentado e certificados
+                emitidos.
+              </p>
+            </div>
+          </div>
+          <div className="community-columns">
+            <div>
+              <h3>Movimentações de CodeCoins</h3>
+              <div className="mini-list">
+                {economy.coins.map((item) => (
+                  <div key={item.id}>
+                    <strong>
+                      {item.amount > 0 ? "+" : ""}
+                      {item.amount}
+                    </strong>
+                    <span>
+                      {item.student_name} · {item.reason}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h3>Certificados</h3>
+              <div className="mini-list">
+                {economy.certificates.map((item) => (
+                  <div key={item.id}>
+                    <strong>{item.title}</strong>
+                    <span>
+                      {item.student_name} · {item.certificate_code}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+    </section>
+  );
 }
 
-function DashboardShell({ session, section, setSection, title, error, setError, children }) {
-  return <div className="nexus-app clean-app"><aside className="sidebar"><div className="brand"><span className="brand-mark">VM</span><div><strong>VM Nexus</strong><small>Digital</small></div></div><nav><span className="nav-label">CENTRAL DE PROJETOS</span>{menu.map(([id, label]) => <button key={id} className={section === id ? "active" : ""} onClick={() => setSection(id)}><span>{label}</span><b>›</b></button>)}</nav><div className="sidebar-footer"><span className="status-dot" /><div><strong>Ambiente protegido</strong><small>Uso interno VM Nexus</small></div></div></aside><main><header className="topbar"><div><small>Central VM Nexus</small><strong>{title}</strong></div><div className="operator"><span>MN</span><div><strong>{session.admin.name}</strong><small>Administrador geral</small></div><button className="logout-button" onClick={() => { localStorage.removeItem("vm_nexus_session"); window.location.reload(); }}>Sair</button></div></header><div className="workspace clean-workspace">{error && <div className="login-error workspace-error">{error}<button onClick={() => setError("")}>×</button></div>}{children}</div><footer><span><i /> Sistema disponível</span><span>VM Nexus Dashboard</span><span>Uso interno</span></footer></main></div>;
+function DashboardShell({
+  session,
+  section,
+  setSection,
+  title,
+  error,
+  setError,
+  children,
+}) {
+  return (
+    <div className="nexus-app clean-app">
+      <aside className="sidebar">
+        <div className="brand">
+          <span className="brand-mark">VM</span>
+          <div>
+            <strong>VM Nexus</strong>
+            <small>Digital</small>
+          </div>
+        </div>
+        <nav>
+          <span className="nav-label">CENTRAL DE PROJETOS</span>
+          {menu.map(([id, label]) => (
+            <button
+              key={id}
+              className={section === id ? "active" : ""}
+              onClick={() => setSection(id)}
+            >
+              <span>{label}</span>
+              <b>›</b>
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+          <span className="status-dot" />
+          <div>
+            <strong>Ambiente protegido</strong>
+            <small>Uso interno VM Nexus</small>
+          </div>
+        </div>
+      </aside>
+      <main>
+        <header className="topbar">
+          <div>
+            <small>Central VM Nexus</small>
+            <strong>{title}</strong>
+          </div>
+          <div className="operator">
+            <span>MN</span>
+            <div>
+              <strong>{session.admin.name}</strong>
+              <small>Administrador geral</small>
+            </div>
+            <button
+              className="logout-button"
+              onClick={() => {
+                localStorage.removeItem("vm_nexus_session");
+                window.location.reload();
+              }}
+            >
+              Sair
+            </button>
+          </div>
+        </header>
+        <div className="workspace clean-workspace">
+          {error && (
+            <div className="login-error workspace-error">
+              {error}
+              <button onClick={() => setError("")}>×</button>
+            </div>
+          )}
+          {children}
+        </div>
+        <footer>
+          <span>
+            <i /> Sistema disponível
+          </span>
+          <span>VM Nexus Dashboard</span>
+          <span>Uso interno</span>
+        </footer>
+      </main>
+    </div>
+  );
 }
 
 function App() {
-  const [section, setSection] = useState("visao"); const [session, setSession] = useState(() => { try { return JSON.parse(localStorage.getItem("vm_nexus_session") || "null"); } catch { return null; } }); const [projects, setProjects] = useState([]); const [tenants, setTenants] = useState([]); const [plans, setPlans] = useState([]); const [selectedProjectId, setSelectedProjectId] = useState(null); const [selectedTenant, setSelectedTenant] = useState(null); const [units, setUnits] = useState([]); const [projectEditor, setProjectEditor] = useState(undefined); const [saving, setSaving] = useState(false); const [error, setError] = useState("");
-  const selectedProject = projects.find((item) => item.id === selectedProjectId); const tenantProjects = useMemo(() => projects.filter(isTenantProject), [projects]); const globalTenantProject = tenantProjects.find((item) => item.id === selectedProjectId) || tenantProjects[0]; const shownProject = section === "tenants" ? globalTenantProject : selectedProject;
-  async function refreshProjects() { const { products } = await listarProdutos(session.token); setProjects(products); return products; }
-  async function refreshTenants() { const { tenants: items } = await listarTenants(session.token); setTenants(items); }
-  async function refreshPlans(project = selectedProject) { if (!project?.slug) { setPlans([]); return; } const { plans: items } = await listarPlanos(session.token, project.slug); setPlans(items); }
-  async function refreshUnits(tenant = selectedTenant) { if (!tenant?.id) { setUnits([]); return; } const { units: items } = await listarUnidades(session.token, tenant.id); setUnits(items); }
+  const [section, setSection] = useState("visao");
+  const [session, setSession] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("vm_nexus_session") || "null");
+    } catch {
+      return null;
+    }
+  });
+  const [projects, setProjects] = useState([]);
+  const [tenants, setTenants] = useState([]);
+  const [plans, setPlans] = useState([]);
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const [selectedTenant, setSelectedTenant] = useState(null);
+  const [units, setUnits] = useState([]);
+  const [projectEditor, setProjectEditor] = useState(undefined);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const selectedProject = projects.find(
+    (item) => item.id === selectedProjectId,
+  );
+  const tenantProjects = useMemo(
+    () => projects.filter(isTenantProject),
+    [projects],
+  );
+  const globalTenantProject =
+    tenantProjects.find((item) => item.id === selectedProjectId) ||
+    tenantProjects[0];
+  const shownProject =
+    section === "tenants" ? globalTenantProject : selectedProject;
+  async function refreshProjects() {
+    const { products } = await listarProdutos(session.token);
+    setProjects(products);
+    return products;
+  }
+  async function refreshTenants() {
+    const { tenants: items } = await listarTenants(session.token);
+    setTenants(items);
+  }
+  async function refreshPlans(project = selectedProject) {
+    if (!project?.slug) {
+      setPlans([]);
+      return;
+    }
+    const { plans: items } = await listarPlanos(session.token, project.slug);
+    setPlans(items);
+  }
+  async function refreshUnits(tenant = selectedTenant) {
+    if (!tenant?.id) {
+      setUnits([]);
+      return;
+    }
+    const { units: items } = await listarUnidades(session.token, tenant.id);
+    setUnits(items);
+  }
   useEffect(() => {
     if (!session?.token) return;
-    Promise.all([listarProdutos(session.token), listarTenants(session.token)]).then(([productData, tenantData]) => {
-      setProjects(productData.products); setTenants(tenantData.tenants);
-    }).catch((err) => setError(err.message));
+    Promise.all([listarProdutos(session.token), listarTenants(session.token)])
+      .then(([productData, tenantData]) => {
+        setProjects(productData.products);
+        setTenants(tenantData.tenants);
+      })
+      .catch((err) => setError(err.message));
   }, [session?.token]);
   useEffect(() => {
     if (!session?.token || !selectedProject?.slug) return;
-    listarPlanos(session.token, selectedProject.slug).then(({ plans: items }) => setPlans(items)).catch((err) => setError(err.message));
+    listarPlanos(session.token, selectedProject.slug)
+      .then(({ plans: items }) => setPlans(items))
+      .catch((err) => setError(err.message));
   }, [session?.token, selectedProject?.slug]);
   useEffect(() => {
     if (!session?.token || !selectedTenant?.id) return;
-    listarUnidades(session.token, selectedTenant.id).then(({ units: items }) => setUnits(items)).catch((err) => setError(err.message));
+    listarUnidades(session.token, selectedTenant.id)
+      .then(({ units: items }) => setUnits(items))
+      .catch((err) => setError(err.message));
   }, [session?.token, selectedTenant?.id]);
-  if (!session) return <Login onLogin={(data) => { localStorage.setItem("vm_nexus_session", JSON.stringify(data)); setSession(data); }} />;
-  function openProject(project) { setSelectedProjectId(project.id); setSelectedTenant(null); setSection("projeto"); setError(""); }
-  async function saveProject(event, project, technologies) { event.preventDefault(); const form = new FormData(event.currentTarget); if (!technologies.length) { setError("Selecione pelo menos uma tecnologia."); return false; } const technology = technologies[0]; const meta = TECHNOLOGIES[technology]; const payload = { name: form.get("name"), slug: form.get("slug"), category: form.get("category"), description: form.get("description"), status: form.get("status"), technology, technologies, productType: meta.type, platforms: form.getAll("platforms"), tenantEnabled: technologies.includes("tauri") && form.get("tenantEnabled") === "on" }; setSaving(true); setError(""); try { const response = project ? await atualizarProduto(session.token, project.id, payload) : await criarProduto(session.token, payload); const items = await refreshProjects(); const saved = response.product || items.find((item) => item.id === project?.id || item.slug === payload.slug); setProjectEditor(undefined); if (saved) { setSelectedProjectId(saved.id); setSection("projeto"); } return true; } catch (err) { setError(err.message); return false; } finally { setSaving(false); } }
-  async function deleteProject(project) { if (!window.confirm(`Excluir o projeto “${project.name}”?`)) return; try { await excluirProduto(session.token, project.id); await refreshProjects(); if (selectedProjectId === project.id) setSection("projetos"); } catch (err) { setError(err.message); } }
-  async function savePlan(event, plan) { event.preventDefault(); const form = new FormData(event.currentTarget); const benefits = String(form.get("benefits") || "").split(",").map((item) => item.trim()).filter(Boolean); const payload = { productKey: selectedProject.slug, name: form.get("name"), slug: form.get("name"), description: form.get("description"), monthlyPrice: form.get("monthlyPrice"), displayOrder: form.get("displayOrder"), features: { coins: Number(form.get("coins") || 0), benefits } }; setSaving(true); try { if (plan) await atualizarPlano(session.token, plan.id, payload); else await criarPlano(session.token, payload); await refreshPlans(); return true; } catch (err) { setError(err.message); return false; } finally { setSaving(false); } }
-  async function selectTenant(tenant) { setSelectedTenant(tenant); }
-  async function saveTenant(event, tenant) { event.preventDefault(); const form = new FormData(event.currentTarget); setSaving(true); try { const payload = { name: form.get("name"), slug: form.get("slug"), productKey: selectedProject.slug }; if (tenant) await atualizarTenant(session.token, tenant.id, payload); else await criarTenant(session.token, payload); await refreshTenants(); return true; } catch (err) { setError(err.message); return false; } finally { setSaving(false); } }
-  async function createUnit(event) { event.preventDefault(); const form = new FormData(event.currentTarget); setSaving(true); try { await criarUnidade(session.token, selectedTenant.id, { name: form.get("name"), slug: form.get("slug"), city: form.get("city"), state: form.get("state") }); await refreshUnits(); await refreshTenants(); event.currentTarget.reset(); } catch (err) { setError(err.message); } finally { setSaving(false); } }
-  const tenantActions = { create: (event) => saveTenant(event), update: saveTenant, select: selectTenant, createUnit, toggle: async (tenant) => { try { await alterarStatusTenant(session.token, tenant.id, tenant.status === "suspended"); await refreshTenants(); } catch (err) { setError(err.message); } }, remove: async (tenant) => { if (!window.confirm(`Excluir a empresa “${tenant.name}”?`)) return; try { await excluirTenant(session.token, tenant.id); await refreshTenants(); if (selectedTenant?.id === tenant.id) setSelectedTenant(null); } catch (err) { setError(err.message); } }, toggleUnit: async (unit) => { try { await alterarStatusUnidade(session.token, selectedTenant.id, unit.id, !unit.active); await refreshUnits(); } catch (err) { setError(err.message); } }, removeUnit: async (unit) => { if (!window.confirm(`Excluir a unidade “${unit.name}”?`)) return; try { await excluirUnidade(session.token, selectedTenant.id, unit.id); await refreshUnits(); await refreshTenants(); } catch (err) { setError(err.message); } } };
-  const projectTenants = tenants.filter((tenant) => tenant.product_key === shownProject?.slug);
-  const title = section === "projeto" ? selectedProject?.name : menu.find(([id]) => id === section)?.[1] || "Projetos";
-  if (section === "analytics") return <DashboardShell session={session} section={section} setSection={setSection} title={title} error={error} setError={setError}><ExecutiveAnalyticsView token={session.token} onError={setError} /></DashboardShell>;
-  if (section === "auditoria") return <DashboardShell session={session} section={section} setSection={setSection} title={title} error={error} setError={setError}><AuditLogView token={session.token} onError={setError} /></DashboardShell>;
-  return <div className="nexus-app clean-app"><aside className="sidebar"><div className="brand"><span className="brand-mark">VM</span><div><strong>VM Nexus</strong><small>Digital</small></div></div><nav><span className="nav-label">CENTRAL DE PROJETOS</span>{menu.map(([id, label]) => <button key={id} className={section === id ? "active" : ""} onClick={() => { setSection(id); if (id === "tenants" && globalTenantProject) setSelectedProjectId(globalTenantProject.id); }}><span>{label}</span><b>›</b></button>)}</nav><div className="sidebar-footer"><span className="status-dot" /><div><strong>Ambiente protegido</strong><small>Uso interno VM Nexus</small></div></div></aside><main><header className="topbar"><div><small>Central VM Nexus</small><strong>{title}</strong></div><div className="operator"><span>MN</span><div><strong>{session.admin.name}</strong><small>Administrador geral</small></div><button className="logout-button" onClick={() => { localStorage.removeItem("vm_nexus_session"); setSession(null); }}>Sair</button></div></header><div className="workspace clean-workspace">{error && <div className="login-error workspace-error">{error}<button onClick={() => setError("")}>×</button></div>}{projectEditor !== undefined ? <section className="page-section"><ProjectForm project={projectEditor} onSave={saveProject} onCancel={() => setProjectEditor(undefined)} saving={saving} error={error} /></section> : section === "visao" ? <Overview projects={projects} onOpen={openProject} onNew={() => setProjectEditor(null)} token={session.token} onNavigate={setSection} onError={setError} /> : section === "financeiro" ? <FinancialView token={session.token} onError={setError} /> : section === "assinaturas" ? <SubscriptionsView token={session.token} onError={setError} /> : section === "alunos" ? <StudentDirectoryView token={session.token} onError={setError} /> : section === "permissoes" ? <PermissionsView token={session.token} onError={setError} /> : section === "projetos" ? <ProjectsView projects={projects} onOpen={openProject} onEdit={setProjectEditor} onDelete={deleteProject} /> : section === "projeto" && selectedProject ? <ProjectWorkspace project={selectedProject} plans={plans} tenants={projectTenants} selectedTenant={selectedTenant} units={units} onBack={() => setSection("projetos")} onProjectSave={saveProject} onPlansSave={savePlan} onPlanToggle={async (plan) => { try { await alterarStatusPlano(session.token, plan.id, !plan.active); await refreshPlans(); } catch (err) { setError(err.message); } }} onTenant={tenantActions} saving={saving} error={error} /> : section === "tenants" && shownProject ? <ProjectWorkspace project={shownProject} plans={plans} tenants={projectTenants} selectedTenant={selectedTenant} units={units} onBack={() => setSection("projetos")} onProjectSave={saveProject} onPlansSave={savePlan} onPlanToggle={() => {}} onTenant={tenantActions} saving={saving} error={error} /> : <section className="empty-card"><h2>Nenhum sistema Tauri multi-tenant.</h2><p>Ao editar um sistema Tauri, marque “Este é um sistema multi-tenant” para administrar empresas e unidades aqui.</p><button className="button-primary" onClick={() => setSection("projetos")}>Ver projetos</button></section>}</div><footer><span><i /> Sistema disponível</span><span>VM Nexus Dashboard</span><span>Uso interno</span></footer></main></div>;
+  if (!session)
+    return (
+      <Login
+        onLogin={(data) => {
+          localStorage.setItem("vm_nexus_session", JSON.stringify(data));
+          setSession(data);
+        }}
+      />
+    );
+  function openProject(project) {
+    setSelectedProjectId(project.id);
+    setSelectedTenant(null);
+    setSection("projeto");
+    setError("");
+  }
+  async function saveProject(event, project, technologies) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    if (!technologies.length) {
+      setError("Selecione pelo menos uma tecnologia.");
+      return false;
+    }
+    const technology = technologies[0];
+    const meta = TECHNOLOGIES[technology];
+    const payload = {
+      name: form.get("name"),
+      slug: form.get("slug"),
+      category: form.get("category"),
+      description: form.get("description"),
+      status: form.get("status"),
+      technology,
+      technologies,
+      productType: meta.type,
+      platforms: form.getAll("platforms"),
+      tenantEnabled:
+        technologies.includes("tauri") && form.get("tenantEnabled") === "on",
+    };
+    setSaving(true);
+    setError("");
+    try {
+      const response = project
+        ? await atualizarProduto(session.token, project.id, payload)
+        : await criarProduto(session.token, payload);
+      const items = await refreshProjects();
+      const saved =
+        response.product ||
+        items.find(
+          (item) => item.id === project?.id || item.slug === payload.slug,
+        );
+      setProjectEditor(undefined);
+      if (saved) {
+        setSelectedProjectId(saved.id);
+        setSection("projeto");
+      }
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+  async function deleteProject(project) {
+    if (!window.confirm(`Excluir o projeto “${project.name}”?`)) return;
+    try {
+      await excluirProduto(session.token, project.id);
+      await refreshProjects();
+      if (selectedProjectId === project.id) setSection("projetos");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+  async function savePlan(event, plan) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const benefits = String(form.get("benefits") || "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const payload = {
+      productKey: selectedProject.slug,
+      name: form.get("name"),
+      slug: form.get("name"),
+      description: form.get("description"),
+      monthlyPrice: form.get("monthlyPrice"),
+      displayOrder: form.get("displayOrder"),
+      features: { coins: Number(form.get("coins") || 0), benefits },
+    };
+    setSaving(true);
+    try {
+      if (plan) await atualizarPlano(session.token, plan.id, payload);
+      else await criarPlano(session.token, payload);
+      await refreshPlans();
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+  async function selectTenant(tenant) {
+    setSelectedTenant(tenant);
+  }
+  async function saveTenant(event, tenant) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setSaving(true);
+    try {
+      const payload = {
+        name: form.get("name"),
+        slug: form.get("slug"),
+        productKey: selectedProject.slug,
+      };
+      if (tenant) await atualizarTenant(session.token, tenant.id, payload);
+      else await criarTenant(session.token, payload);
+      await refreshTenants();
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+  async function createUnit(event) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setSaving(true);
+    try {
+      await criarUnidade(session.token, selectedTenant.id, {
+        name: form.get("name"),
+        slug: form.get("slug"),
+        city: form.get("city"),
+        state: form.get("state"),
+      });
+      await refreshUnits();
+      await refreshTenants();
+      event.currentTarget.reset();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+  const tenantActions = {
+    create: (event) => saveTenant(event),
+    update: saveTenant,
+    select: selectTenant,
+    createUnit,
+    toggle: async (tenant) => {
+      try {
+        await alterarStatusTenant(
+          session.token,
+          tenant.id,
+          tenant.status === "suspended",
+        );
+        await refreshTenants();
+      } catch (err) {
+        setError(err.message);
+      }
+    },
+    remove: async (tenant) => {
+      if (!window.confirm(`Excluir a empresa “${tenant.name}”?`)) return;
+      try {
+        await excluirTenant(session.token, tenant.id);
+        await refreshTenants();
+        if (selectedTenant?.id === tenant.id) setSelectedTenant(null);
+      } catch (err) {
+        setError(err.message);
+      }
+    },
+    toggleUnit: async (unit) => {
+      try {
+        await alterarStatusUnidade(
+          session.token,
+          selectedTenant.id,
+          unit.id,
+          !unit.active,
+        );
+        await refreshUnits();
+      } catch (err) {
+        setError(err.message);
+      }
+    },
+    removeUnit: async (unit) => {
+      if (!window.confirm(`Excluir a unidade “${unit.name}”?`)) return;
+      try {
+        await excluirUnidade(session.token, selectedTenant.id, unit.id);
+        await refreshUnits();
+        await refreshTenants();
+      } catch (err) {
+        setError(err.message);
+      }
+    },
+  };
+  const projectTenants = tenants.filter(
+    (tenant) => tenant.product_key === shownProject?.slug,
+  );
+  const title =
+    section === "projeto"
+      ? selectedProject?.name
+      : menu.find(([id]) => id === section)?.[1] || "Projetos";
+  if (section === "analytics")
+    return (
+      <DashboardShell
+        session={session}
+        section={section}
+        setSection={setSection}
+        title={title}
+        error={error}
+        setError={setError}
+      >
+        <ExecutiveAnalyticsView token={session.token} onError={setError} />
+      </DashboardShell>
+    );
+  if (section === "auditoria")
+    return (
+      <DashboardShell
+        session={session}
+        section={section}
+        setSection={setSection}
+        title={title}
+        error={error}
+        setError={setError}
+      >
+        <AuditLogView token={session.token} onError={setError} />
+      </DashboardShell>
+    );
+  return (
+    <div className="nexus-app clean-app">
+      <aside className="sidebar">
+        <div className="brand">
+          <span className="brand-mark">VM</span>
+          <div>
+            <strong>VM Nexus</strong>
+            <small>Digital</small>
+          </div>
+        </div>
+        <nav>
+          <span className="nav-label">CENTRAL DE PROJETOS</span>
+          {menu.map(([id, label]) => (
+            <button
+              key={id}
+              className={section === id ? "active" : ""}
+              onClick={() => {
+                setSection(id);
+                if (id === "tenants" && globalTenantProject)
+                  setSelectedProjectId(globalTenantProject.id);
+              }}
+            >
+              <span>{label}</span>
+              <b>›</b>
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+          <span className="status-dot" />
+          <div>
+            <strong>Ambiente protegido</strong>
+            <small>Uso interno VM Nexus</small>
+          </div>
+        </div>
+      </aside>
+      <main>
+        <header className="topbar">
+          <div>
+            <small>Central VM Nexus</small>
+            <strong>{title}</strong>
+          </div>
+          <div className="operator">
+            <span>MN</span>
+            <div>
+              <strong>{session.admin.name}</strong>
+              <small>Administrador geral</small>
+            </div>
+            <button
+              className="logout-button"
+              onClick={() => {
+                localStorage.removeItem("vm_nexus_session");
+                setSession(null);
+              }}
+            >
+              Sair
+            </button>
+          </div>
+        </header>
+        <div className="workspace clean-workspace">
+          {error && (
+            <div className="login-error workspace-error">
+              {error}
+              <button onClick={() => setError("")}>×</button>
+            </div>
+          )}
+          {projectEditor !== undefined ? (
+            <section className="page-section">
+              <ProjectForm
+                project={projectEditor}
+                onSave={saveProject}
+                onCancel={() => setProjectEditor(undefined)}
+                saving={saving}
+                error={error}
+              />
+            </section>
+          ) : section === "visao" ? (
+            <Overview
+              projects={projects}
+              onOpen={openProject}
+              onNew={() => setProjectEditor(null)}
+              token={session.token}
+              onNavigate={setSection}
+              onError={setError}
+            />
+          ) : section === "financeiro" ? (
+            <FinancialView token={session.token} onError={setError} />
+          ) : section === "assinaturas" ? (
+          <SubscriptionsView
+            token={session.token}
+            onError={setError}
+            onOpenStudyCode={() => {
+              const studyCode = projects.find((project) => project.slug === "studycode");
+              if (studyCode) openProject(studyCode);
+              else setError("Cadastre o projeto StudyCode antes de gerenciar assinaturas de alunos.");
+            }}
+          />
+          ) : section === "alunos" ? (
+            <StudentDirectoryView token={session.token} onError={setError} />
+          ) : section === "permissoes" ? (
+            <PermissionsView token={session.token} onError={setError} />
+          ) : section === "projetos" ? (
+            <ProjectsView
+              projects={projects}
+              onOpen={openProject}
+              onEdit={setProjectEditor}
+              onDelete={deleteProject}
+            />
+          ) : section === "projeto" && selectedProject ? (
+            <ProjectWorkspace
+              project={selectedProject}
+              plans={plans}
+              tenants={projectTenants}
+              selectedTenant={selectedTenant}
+              units={units}
+              onBack={() => setSection("projetos")}
+              onProjectSave={saveProject}
+              onPlansSave={savePlan}
+              onPlanToggle={async (plan) => {
+                try {
+                  await alterarStatusPlano(
+                    session.token,
+                    plan.id,
+                    !plan.active,
+                  );
+                  await refreshPlans();
+                } catch (err) {
+                  setError(err.message);
+                }
+              }}
+              onTenant={tenantActions}
+              saving={saving}
+              error={error}
+            />
+          ) : section === "tenants" && shownProject ? (
+            <ProjectWorkspace
+              project={shownProject}
+              plans={plans}
+              tenants={projectTenants}
+              selectedTenant={selectedTenant}
+              units={units}
+              onBack={() => setSection("projetos")}
+              onProjectSave={saveProject}
+              onPlansSave={savePlan}
+              onPlanToggle={() => {}}
+              onTenant={tenantActions}
+              saving={saving}
+              error={error}
+            />
+          ) : (
+            <section className="empty-card">
+              <h2>Nenhum sistema Tauri multi-tenant.</h2>
+              <p>
+                Ao editar um sistema Tauri, marque “Este é um sistema
+                multi-tenant” para administrar empresas e unidades aqui.
+              </p>
+              <button
+                className="button-primary"
+                onClick={() => setSection("projetos")}
+              >
+                Ver projetos
+              </button>
+            </section>
+          )}
+        </div>
+        <footer>
+          <span>
+            <i /> Sistema disponível
+          </span>
+          <span>VM Nexus Dashboard</span>
+          <span>Uso interno</span>
+        </footer>
+      </main>
+    </div>
+  );
 }
 
 export default App;

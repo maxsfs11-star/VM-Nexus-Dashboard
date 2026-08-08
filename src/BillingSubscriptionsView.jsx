@@ -72,7 +72,20 @@ export default function BillingSubscriptionsView({ token, onError, onOpenStudyCo
       onError(tenants.length ? "Todos os clientes já possuem uma assinatura ativa ou em teste." : "Cadastre um cliente em Tenants Tauri antes de criar a assinatura.");
       return;
     }
-    await selectCreateTenant(available[0].id);
+    setPlans([]);
+    setSelected({
+      mode: "create",
+      tenant_id: "",
+      tenant_name: "",
+      tenant_slug: "",
+      product_name: "MesaManda",
+      product_slug: "mesamanda",
+      plan_id: "",
+      status: "trial",
+      billing_status: "current",
+      due_date: null,
+      grace_period_until: null,
+    });
   }
 
   function openCreate() {
@@ -92,6 +105,10 @@ export default function BillingSubscriptionsView({ token, onError, onOpenStudyCo
   async function saveSubscription(event) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    if (!selected.tenant_id) {
+      onError("Selecione a empresa que receberá a assinatura.");
+      return;
+    }
     if (!form.get("planId")) {
       onError("Selecione um plano antes de salvar a assinatura.");
       return;
@@ -185,13 +202,13 @@ export default function BillingSubscriptionsView({ token, onError, onOpenStudyCo
         </div>
       </div>}
       {selected && selected.mode !== "choose" && <div className="billing-drawer">
-        <div className="section-heading"><div><span className="eyebrow">{selected.mode === "create" ? "NOVA ASSINATURA" : "GESTÃO DA ASSINATURA"}</span><h2>{selected.tenant_name}</h2><p>{selected.product_name} · {selected.tenant_slug}</p></div><button className="button-quiet" onClick={() => setSelected(null)}>Fechar</button></div>
+        <div className="section-heading"><div><span className="eyebrow">{selected.mode === "create" ? "NOVA ASSINATURA" : "GESTÃO DA ASSINATURA"}</span><h2>{selected.tenant_name || "Selecione uma empresa"}</h2><p>{selected.tenant_name ? `${selected.product_name} · ${selected.tenant_slug}` : "Escolha qualquer empresa cadastrada no MesaManda."}</p></div><button className="button-quiet" onClick={() => setSelected(null)}>Fechar</button></div>
         <form className="billing-form" onSubmit={saveSubscription}>
           <h3>Plano e ciclo</h3>
-          {selected.mode === "create" && <label>Cliente<select value={selected.tenant_id} onChange={(event) => selectCreateTenant(event.target.value)}>{availableTenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.name} · {tenant.product_key}</option>)}</select></label>}
-          <div className="editor-grid"><label>Plano<select key={`${selected.tenant_id}-${selected.plan_id}-${plans.length}`} name="planId" defaultValue={selected.plan_id}>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {money(plan.monthly_price)}</option>)}</select></label><label>Status<select name="status" defaultValue={selected.status}><option value="trial">Em teste</option><option value="active">Ativa</option><option value="paused">Pausada</option><option value="cancelled">Cancelada</option></select></label></div>
+          {selected.mode === "create" && <label>Empresa<select value={selected.tenant_id} onChange={(event) => selectCreateTenant(event.target.value)}><option value="">Selecione uma empresa</option>{availableTenants.map((tenant) => <option key={tenant.id} value={tenant.id}>{tenant.name} · {tenant.product_key}</option>)}</select></label>}
+          <div className="editor-grid"><label>Plano<select key={`${selected.tenant_id}-${selected.plan_id}-${plans.length}`} name="planId" defaultValue={selected.plan_id} disabled={!selected.tenant_id}>{!plans.length && <option value="">Selecione primeiro a empresa</option>}{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {money(plan.monthly_price)}</option>)}</select></label><label>Status<select name="status" defaultValue={selected.status}><option value="trial">Em teste</option><option value="active">Ativa</option><option value="paused">Pausada</option><option value="cancelled">Cancelada</option></select></label></div>
           <label>Encerramento previsto<input type="datetime-local" name="endsAt" defaultValue={dateInput(selected.ends_at)} /></label>
-          <button className="button-primary" disabled={saving}>{saving ? "Salvando..." : "Salvar assinatura"}</button>
+          <button className="button-primary" disabled={saving || !selected.tenant_id || !plans.length}>{saving ? "Salvando..." : "Salvar assinatura"}</button>
         </form>
         <form className="billing-form" onSubmit={saveBilling}>
           <h3>Cobrança</h3>
