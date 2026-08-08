@@ -47,9 +47,19 @@ function StudyCodeBillingPanel({ token, onError, onBack }) {
 
   async function load() {
     setLoading(true);
-    try { setData(await listarStudyCodeCobrancas(token)); }
-    catch (error) { onError(error.message); }
-    finally { setLoading(false); }
+    try {
+      const [billingResult, plansResult] = await Promise.allSettled([
+        listarStudyCodeCobrancas(token),
+        listarPlanos(token, "studycode"),
+      ]);
+      const billing = billingResult.status === "fulfilled" ? billingResult.value : null;
+      const plans = plansResult.status === "fulfilled" ? plansResult.value.plans : billing?.plans;
+      if (plansResult.status === "fulfilled" || billingResult.status === "fulfilled") {
+        setData({ plans: plans || [], payments: billing?.payments || [] });
+      }
+      const failure = billingResult.status === "rejected" ? billingResult.reason : plansResult.status === "rejected" ? plansResult.reason : null;
+      if (failure) onError(failure.message);
+    } finally { setLoading(false); }
   }
 
   // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
