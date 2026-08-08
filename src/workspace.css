@@ -90,3 +90,8 @@
 .billing-form input:disabled { color: #69859a; background: #edf4f8; cursor: not-allowed; }
 .studycode-plan-form { border-color: #9fcfe7; box-shadow: 0 14px 34px rgba(12, 82, 127, .09); }
 .studycode-payment-history .payment-table-head, .studycode-payment-history .payment-row { grid-template-columns: 1.25fr .9fr .65fr .7fr 1fr 1fr; min-width: 960px; }
+.studycode-plan-form { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.studycode-plan-form > .section-heading, .studycode-plan-form > .button-primary, .studycode-plan-form > label, .studycode-plan-form > .editor-grid { grid-column: 1 / -1; }
+.studycode-plan-form > .section-heading { padding-bottom: 4px; border-bottom: 1px solid #e0edf4; }
+.studycode-plan-form > label, .studycode-plan-form .editor-grid { min-width: 0; }
+@media (max-width: 800px) { .studycode-plan-form { grid-template-columns: 1fr; } }
