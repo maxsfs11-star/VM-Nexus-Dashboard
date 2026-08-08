@@ -78,6 +78,10 @@ export function alterarStatusPlano(token, planId, active) {
   return request(`/api/plans/${planId}/status`, { method: "PATCH", token, body: JSON.stringify({ active }) });
 }
 
+export function excluirPlano(token, planId) {
+  return request(`/api/plans/${planId}`, { method: "DELETE", token });
+}
+
 export function consultarAssinaturaTenant(token, tenantId) {
   return request(`/api/tenants/${tenantId}/subscription`, { token });
 }

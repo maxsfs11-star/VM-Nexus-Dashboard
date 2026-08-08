@@ -5,6 +5,7 @@ import {
   atualizarCobrancaTenant,
   atualizarPlano,
   criarPlano,
+  excluirPlano,
   listarAssinaturas,
   listarPlanos,
   listarStudyCodeCobrancas,
@@ -88,6 +89,13 @@ function StudyCodeBillingPanel({ token, onError, onBack }) {
     catch (error) { onError(error.message); }
   }
 
+  async function deletePlan(plan) {
+    const confirmed = window.confirm(`Excluir o plano "${plan.name}"? Essa ação só é permitida quando não há assinaturas vinculadas.`);
+    if (!confirmed) return;
+    try { await excluirPlano(token, plan.id); await load(); }
+    catch (error) { onError(error.message); }
+  }
+
   const activeSubscriptions = data.payments.filter((item) => item.status === "active").length;
   const pendingPayments = data.payments.filter((item) => item.status === "pending" || item.status === "past_due").length;
 
@@ -102,7 +110,7 @@ function StudyCodeBillingPanel({ token, onError, onBack }) {
       <label>Descrição<textarea name="description" rows="2" defaultValue={editing?.description || ""} placeholder="O que este plano oferece" /></label>
       <div className="editor-grid"><label>Preço (R$)<input name="price" type="number" min="0" step="0.01" required defaultValue={editing?.monthly_price ?? 0} /></label><label>Modalidade<select name="billingType" defaultValue={readFeatures(editing?.features).billingType || "recurring"}><option value="recurring">Assinatura mensal</option><option value="lifetime">Acesso vitalício</option></select></label><label>Duração de acesso (meses)<input name="durationMonths" type="number" min="1" defaultValue={readFeatures(editing?.features).durationMonths || 1} /></label><label>Ordem de exibição<input name="displayOrder" type="number" min="0" defaultValue={editing?.display_order || 0} /></label></div>
       <label>Benefícios, um por linha<textarea name="benefits" rows="4" defaultValue={(readFeatures(editing?.features).benefits || []).join("\n")} placeholder={'Todas as linguagens\nIA com limite maior\nCertificados'} /></label>
-      <button className="button-primary" disabled={saving}>{saving ? "Salvando..." : "Salvar plano"}</button>
+      <div className="action-row"><button className="button-primary" disabled={saving}>{saving ? "Salvando..." : "Salvar plano"}</button>{editing?.id && <button className="button-quiet danger-button" type="button" onClick={() => deletePlan(editing)}>Excluir plano</button>}</div>
     </form>}
 
     <section className="workspace-panel"><div className="section-heading"><div><span className="eyebrow">CATÁLOGO COMERCIAL</span><h2>Planos do StudyCode</h2><p>Edite preços, prazo, benefícios e disponibilidade sem alterar o aplicativo.</p></div></div><div className="plan-grid">{data.plans.map((plan) => { const features = readFeatures(plan.features); const lifetime = features.billingType === "lifetime"; return <article className="monetization-card" key={plan.id}><div><span className={`status-pill ${plan.active ? "available" : "planned"}`}>{plan.active ? "ATIVO" : "PAUSADO"}</span><h3>{plan.name}</h3><p>{plan.description || "Sem descrição cadastrada."}</p></div><strong>{money(plan.monthly_price)}<small>{lifetime ? " pagamento único" : "/mês"}</small></strong><div className="coin-line">{lifetime ? "Acesso vitalício" : `${features.durationMonths || 1} mês(es) de acesso`}</div><ul>{(features.benefits || []).map((benefit) => <li key={benefit}>{benefit}</li>)}</ul><small>{plan.subscribers || 0} aluno(s) neste plano</small><div className="action-row"><button className="button-quiet" onClick={() => setEditing(plan)}>Editar preço e plano</button><button className="button-quiet" onClick={() => togglePlan(plan)}>{plan.active ? "Pausar" : "Ativar"}</button></div></article>; })}</div>{!data.plans.length && <div className="empty-card"><h3>Nenhum plano cadastrado.</h3><p>Use “Novo plano” para criar a primeira oferta do StudyCode.</p></div>}</section>

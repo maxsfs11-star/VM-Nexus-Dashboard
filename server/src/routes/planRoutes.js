@@ -82,4 +82,25 @@ router.patch("/:planId/status", async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+router.delete("/:planId", async (req, res, next) => {
+  try {
+    const plan = await pool.query("SELECT id, name FROM nexus_plans WHERE id = $1", [req.params.planId]);
+    if (!plan.rows[0]) return res.status(404).json({ error: "Plano não encontrado." });
+
+    const subscriptions = await pool.query(
+      "SELECT COUNT(*)::int AS count FROM nexus_subscriptions WHERE plan_id = $1",
+      [req.params.planId],
+    );
+    if (subscriptions.rows[0].count > 0) {
+      return res.status(409).json({
+        error: "Este plano possui histórico de assinaturas e não pode ser excluído. Pause-o para removê-lo do aplicativo.",
+      });
+    }
+
+    await pool.query("DELETE FROM nexus_plans WHERE id = $1", [req.params.planId]);
+    await audit(req, "plan.deleted", "plan", plan.rows[0].id, { name: plan.rows[0].name });
+    return res.json({ deleted: true, planId: plan.rows[0].id });
+  } catch (error) { return next(error); }
+});
+
 export default router;
