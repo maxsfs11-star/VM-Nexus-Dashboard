@@ -9,6 +9,7 @@ import planRoutes from "./routes/planRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import studycodeAuthRoutes from "./routes/studycodeAuthRoutes.js";
 import studycodeCatalogRoutes from "./routes/studycodeCatalogRoutes.js";
+import studycodeBillingRoutes from "./routes/studycodeBillingRoutes.js";
 import studycodeAdminRoutes from "./routes/studycodeAdminRoutes.js";
 import controlTowerRoutes from "./routes/controlTowerRoutes.js";
 import adminUserRoutes from "./routes/adminUserRoutes.js";
@@ -22,6 +23,7 @@ app.get("/api/health", (_req, res) => res.json({ service: "vm-nexus-api", status
 app.use("/api/auth", authRoutes);
 app.use("/api/studycode/auth", studycodeAuthRoutes);
 app.use("/api/studycode/catalog", studycodeCatalogRoutes);
+app.use("/api/studycode/billing", studycodeBillingRoutes);
 app.use("/api/studycode/admin", studycodeAdminRoutes);
 app.use("/api/control-tower", controlTowerRoutes);
 app.use("/api/admin-users", adminUserRoutes);
