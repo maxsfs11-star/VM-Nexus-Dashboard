@@ -108,14 +108,17 @@ router.post("/checkout-session", async (req, res, next) => {
       success_url: APP_SUCCESS_URL,
       cancel_url: APP_CANCEL_URL,
       metadata,
+      custom_text: {
+        submit: { message: "Pagamento seguro processado pelo Stripe para o StudyCode." },
+      },
       ...(billingType === "recurring" ? { subscription_data: { metadata } } : { payment_intent_data: { metadata } }),
       // Assinaturas recorrentes usam cartão. Boleto/Pix ficam preparados para
       // compras avulsas de CodeCoins, que terão um checkout de pagamento único.
       payment_method_types: ["card"],
       branding_settings: {
         logo: { type: "url", url: env.studycodeCheckoutLogoUrl },
-        background_color: "#FFFFFF",
-        button_color: "#0789B8",
+        background_color: "#0B5D83",
+        button_color: "#FFB32C",
         border_style: "rounded",
         font_family: "inter",
       },
