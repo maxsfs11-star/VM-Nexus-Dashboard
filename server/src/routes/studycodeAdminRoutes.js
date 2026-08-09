@@ -5,6 +5,52 @@ import { authenticate } from "../middleware/authenticate.js";
 const router = Router();
 router.use(authenticate);
 
+// Exclusão controlada para limpar contas usadas apenas nos testes do Stripe.
+// Esta operação fica bloqueada fora de PAYMENTS_MODE=test.
+router.delete("/billing/test-account", async (req, res, next) => {
+  if (process.env.PAYMENTS_MODE !== "test") {
+    return res.status(403).json({ error: "A limpeza de conta de teste está bloqueada fora do ambiente de testes." });
+  }
+  const email = String(req.body?.email || "").trim().toLowerCase();
+  if (!email) return res.status(400).json({ error: "Informe o e-mail da conta de teste." });
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const studentResult = await client.query(
+      "SELECT id, email FROM studycode_users WHERE LOWER(email) = $1 FOR UPDATE",
+      [email],
+    );
+    const student = studentResult.rows[0];
+    if (!student) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Conta StudyCode não encontrada." });
+    }
+
+    await client.query("UPDATE studycode_users SET plan_id = NULL, updated_at = NOW() WHERE id = $1", [student.id]);
+    const transactions = await client.query(
+      "DELETE FROM studycode_billing_transactions WHERE studycode_user_id = $1 RETURNING id",
+      [student.id],
+    );
+    const payments = await client.query(
+      "DELETE FROM studycode_billing_payments WHERE studycode_user_id = $1 RETURNING id",
+      [student.id],
+    );
+    await client.query("COMMIT");
+    return res.json({
+      ok: true,
+      email: student.email,
+      deletedTransactions: transactions.rowCount,
+      deletedPayments: payments.rowCount,
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    return next(error);
+  } finally {
+    client.release();
+  }
+});
+
 router.get("/billing", async (_req, res, next) => {
   try {
     const [plans, payments] = await Promise.all([
