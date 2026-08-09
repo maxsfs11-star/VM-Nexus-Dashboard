@@ -331,7 +331,7 @@ router.get("/coins/packs", async (_req, res, next) => {
         pack.currency, pack.stripe_price_id, pack.active, pack.display_order
       FROM studycode_coin_packs pack
       JOIN nexus_products product ON product.id = pack.product_id
-      WHERE product.slug = 'studycode-codecoin'
+      WHERE product.slug = 'studycode'
       ORDER BY pack.display_order, pack.coin_amount`);
     return res.json({ packs: result.rows });
   } catch (error) { return next(error); }
@@ -350,7 +350,7 @@ router.post("/coins/packs", async (req, res, next) => {
       INSERT INTO studycode_coin_packs (product_id, slug, name, coin_amount, price, currency, stripe_price_id, display_order)
       SELECT product.id, $1, $2, $3, $4, COALESCE($5, 'BRL'), $6, COALESCE($7, 0)
       FROM nexus_products product
-      WHERE product.slug = 'studycode-codecoin'
+      WHERE product.slug = 'studycode'
       RETURNING id, slug, name, coin_amount, price, currency, stripe_price_id, active, display_order`,
     [slug, name, coinAmount, price, req.body?.currency, req.body?.stripePriceId || null, Number(req.body?.displayOrder || 0)]);
     if (!result.rows[0]) return res.status(404).json({ error: "Produto CodeCoin não encontrado." });

@@ -27,12 +27,12 @@ router.get("/coins", async (_req, res, next) => {
          pack.currency, pack.stripe_price_id, pack.display_order
        FROM studycode_coin_packs pack
        JOIN nexus_products product ON product.id = pack.product_id
-       WHERE product.slug = 'studycode-codecoin'
+       WHERE product.slug = 'studycode'
          AND product.status <> 'archived'
          AND pack.active = TRUE
        ORDER BY pack.display_order, pack.coin_amount`,
     );
-    return res.json({ productKey: "studycode-codecoin", packs: result.rows });
+    return res.json({ productKey: "studycode", packs: result.rows });
   } catch (error) {
     return next(error);
   }
