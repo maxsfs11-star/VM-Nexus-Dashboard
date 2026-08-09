@@ -20,4 +20,22 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+router.get("/coins", async (_req, res, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT pack.id, pack.slug, pack.name, pack.coin_amount, pack.price,
+         pack.currency, pack.stripe_price_id, pack.display_order
+       FROM studycode_coin_packs pack
+       JOIN nexus_products product ON product.id = pack.product_id
+       WHERE product.slug = 'studycode-codecoin'
+         AND product.status <> 'archived'
+         AND pack.active = TRUE
+       ORDER BY pack.display_order, pack.coin_amount`,
+    );
+    return res.json({ productKey: "studycode-codecoin", packs: result.rows });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 export default router;

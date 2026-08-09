@@ -324,4 +324,58 @@ router.get("/economy", async (_req, res, next) => {
   } catch (error) { return next(error); }
 });
 
+router.get("/coins/packs", async (_req, res, next) => {
+  try {
+    const result = await pool.query(`
+      SELECT pack.id, pack.slug, pack.name, pack.coin_amount, pack.price,
+        pack.currency, pack.stripe_price_id, pack.active, pack.display_order
+      FROM studycode_coin_packs pack
+      JOIN nexus_products product ON product.id = pack.product_id
+      WHERE product.slug = 'studycode-codecoin'
+      ORDER BY pack.display_order, pack.coin_amount`);
+    return res.json({ packs: result.rows });
+  } catch (error) { return next(error); }
+});
+
+router.post("/coins/packs", async (req, res, next) => {
+  try {
+    const slug = String(req.body?.slug || "").trim().toLowerCase();
+    const name = String(req.body?.name || "").trim();
+    const coinAmount = Number(req.body?.coinAmount);
+    const price = Number(req.body?.price);
+    if (!/^[a-z0-9-]+$/.test(slug) || !name || !Number.isInteger(coinAmount) || coinAmount <= 0 || !Number.isFinite(price) || price < 0) {
+      return res.status(400).json({ error: "Informe identificador, nome, quantidade de CodeCoins e preço válidos." });
+    }
+    const result = await pool.query(`
+      INSERT INTO studycode_coin_packs (product_id, slug, name, coin_amount, price, currency, stripe_price_id, display_order)
+      SELECT product.id, $1, $2, $3, $4, COALESCE($5, 'BRL'), $6, COALESCE($7, 0)
+      FROM nexus_products product
+      WHERE product.slug = 'studycode-codecoin'
+      RETURNING id, slug, name, coin_amount, price, currency, stripe_price_id, active, display_order`,
+    [slug, name, coinAmount, price, req.body?.currency, req.body?.stripePriceId || null, Number(req.body?.displayOrder || 0)]);
+    if (!result.rows[0]) return res.status(404).json({ error: "Produto CodeCoin não encontrado." });
+    return res.status(201).json({ pack: result.rows[0] });
+  } catch (error) { return next(error); }
+});
+
+router.patch("/coins/packs/:packId", async (req, res, next) => {
+  try {
+    const result = await pool.query(`
+      UPDATE studycode_coin_packs
+      SET name = COALESCE($1, name),
+        coin_amount = COALESCE($2, coin_amount),
+        price = COALESCE($3, price),
+        currency = COALESCE($4, currency),
+        stripe_price_id = COALESCE($5, stripe_price_id),
+        active = COALESCE($6, active),
+        display_order = COALESCE($7, display_order),
+        updated_at = NOW()
+      WHERE id = $8
+      RETURNING id, slug, name, coin_amount, price, currency, stripe_price_id, active, display_order`,
+    [req.body?.name || null, Number.isInteger(Number(req.body?.coinAmount)) ? Number(req.body.coinAmount) : null, Number.isFinite(Number(req.body?.price)) ? Number(req.body.price) : null, req.body?.currency || null, req.body?.stripePriceId || null, typeof req.body?.active === "boolean" ? req.body.active : null, Number.isInteger(Number(req.body?.displayOrder)) ? Number(req.body.displayOrder) : null, req.params.packId]);
+    if (!result.rows[0]) return res.status(404).json({ error: "Pacote CodeCoin não encontrado." });
+    return res.json({ pack: result.rows[0] });
+  } catch (error) { return next(error); }
+});
+
 export default router;
