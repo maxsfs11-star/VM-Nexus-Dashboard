@@ -128,6 +128,9 @@ export function moderarStudyCodePost(token, postId, payload) { return request(`/
 export function atualizarStudyCodeFeedback(token, feedbackId, status) { return request(`/api/studycode/admin/community/feedback/${feedbackId}`, { method: "PATCH", token, body: JSON.stringify({ status }) }); }
 export function moderarStudyCodeComentario(token, commentId, status) { return request(`/api/studycode/admin/community/comments/${commentId}`, { method: "PATCH", token, body: JSON.stringify({ status }) }); }
 export function listarStudyCodeEconomia(token) { return request("/api/studycode/admin/economy", { token }); }
+export function listarStudyCodeCodeCoinPacks(token) { return request("/api/studycode/admin/coins/packs", { token }); }
+export function criarStudyCodeCodeCoinPack(token, payload) { return request("/api/studycode/admin/coins/packs", { method: "POST", token, body: JSON.stringify(payload) }); }
+export function atualizarStudyCodeCodeCoinPack(token, packId, payload) { return request(`/api/studycode/admin/coins/packs/${packId}`, { method: "PATCH", token, body: JSON.stringify(payload) }); }
 export function listarControlTower(token, params = {}) {
   const query = new URLSearchParams(params).toString();
   return request(`/api/control-tower${query ? `?${query}` : ""}`, { token });

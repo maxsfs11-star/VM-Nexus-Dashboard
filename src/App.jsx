@@ -44,6 +44,9 @@ import {
   listarStudyCodeComunidade,
   listarStudyCodeConteudo,
   listarStudyCodeEconomia,
+  listarStudyCodeCodeCoinPacks,
+  criarStudyCodeCodeCoinPack,
+  atualizarStudyCodeCodeCoinPack,
   listarStudyCodeIA,
   moderarStudyCodePost,
   listarControlTower,
@@ -3208,6 +3211,9 @@ function StudyCodeWorkspace({
   const [analytics, setAnalytics] = useState({ summary: {}, activity: [] });
   const [community, setCommunity] = useState({ posts: [], feedback: [] });
   const [economy, setEconomy] = useState({ coins: [], certificates: [] });
+  const [coinPacks, setCoinPacks] = useState([]);
+  const [coinPackDrafts, setCoinPackDrafts] = useState({});
+  const [newCoinPack, setNewCoinPack] = useState({ slug: "", name: "", coinAmount: "", price: "", stripePriceId: "" });
   const [loading, setLoading] = useState(false);
   const tabs = [
     ["project-details", "Detalhes do projeto"],
@@ -3234,8 +3240,20 @@ function StudyCodeWorkspace({
         setAnalytics(await listarStudyCodeAnalytics(token));
       if (nextTab === "community")
         setCommunity(await listarStudyCodeComunidade(token));
-      if (nextTab === "economy")
-        setEconomy(await listarStudyCodeEconomia(token));
+      if (nextTab === "economy") {
+        const [economyResult, packsResult] = await Promise.all([
+          listarStudyCodeEconomia(token),
+          listarStudyCodeCodeCoinPacks(token),
+        ]);
+        setEconomy(economyResult);
+        setCoinPacks(packsResult.packs || []);
+        setCoinPackDrafts(Object.fromEntries((packsResult.packs || []).map((pack) => [pack.id, {
+          name: pack.name,
+          coinAmount: String(pack.coin_amount),
+          price: String(pack.price),
+          stripePriceId: pack.stripe_price_id || "",
+        }])));
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -3247,6 +3265,34 @@ function StudyCodeWorkspace({
   useEffect(() => {
     loadTab(tab);
   }, [tab]);
+  async function saveCoinPack(pack) {
+    const draft = coinPackDrafts[pack.id] || {};
+    try {
+      const result = await atualizarStudyCodeCodeCoinPack(token, pack.id, {
+        name: draft.name,
+        coinAmount: Number(draft.coinAmount),
+        price: Number(draft.price),
+        stripePriceId: draft.stripePriceId || null,
+      });
+      setCoinPacks((current) => current.map((item) => item.id === pack.id ? result.pack : item));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+  async function createCoinPack(event) {
+    event.preventDefault();
+    try {
+      const result = await criarStudyCodeCodeCoinPack(token, {
+        ...newCoinPack,
+        coinAmount: Number(newCoinPack.coinAmount),
+        price: Number(newCoinPack.price),
+      });
+      setCoinPacks((current) => [...current, result.pack]);
+      setNewCoinPack({ slug: "", name: "", coinAmount: "", price: "", stripePriceId: "" });
+    } catch (err) {
+      setError(err.message);
+    }
+  }
   if (tab.startsWith("project-")) {
     const mode = tab.replace("project-", "");
     return (
@@ -3741,6 +3787,38 @@ function StudyCodeWorkspace({
               </p>
             </div>
           </div>
+          <section className="workspace-panel">
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">CATÁLOGO DO STUDYCODE</span>
+                <h2>Pacotes CodeCoin</h2>
+                <p>CodeCoin é uma moeda consumível do StudyCode, não uma assinatura ou um novo projeto.</p>
+              </div>
+            </div>
+            <div className="plan-grid">
+              {coinPacks.map((pack) => {
+                const draft = coinPackDrafts[pack.id] || {};
+                return <article className="monetization-card" key={pack.id}>
+                  <span className={`status-pill ${pack.active ? "available" : "planned"}`}>{pack.active ? "ATIVO" : "PAUSADO"}</span>
+                  <h3>{pack.name}</h3>
+                  <label>Nome<input value={draft.name || ""} onChange={(event) => setCoinPackDrafts((current) => ({ ...current, [pack.id]: { ...draft, name: event.target.value } }))} /></label>
+                  <label>CodeCoins<input type="number" min="1" value={draft.coinAmount || ""} onChange={(event) => setCoinPackDrafts((current) => ({ ...current, [pack.id]: { ...draft, coinAmount: event.target.value } }))} /></label>
+                  <label>Preço (R$)<input type="number" min="0" step="0.01" value={draft.price || ""} onChange={(event) => setCoinPackDrafts((current) => ({ ...current, [pack.id]: { ...draft, price: event.target.value } }))} /></label>
+                  <label>Stripe Price ID<input placeholder="price_test_..." value={draft.stripePriceId || ""} onChange={(event) => setCoinPackDrafts((current) => ({ ...current, [pack.id]: { ...draft, stripePriceId: event.target.value } }))} /></label>
+                  <button className="button-primary" onClick={() => saveCoinPack(pack)}>Salvar pacote</button>
+                </article>;
+              })}
+            </div>
+            <form className="billing-form studycode-plan-form" onSubmit={createCoinPack}>
+              <div className="section-heading"><div><span className="eyebrow">NOVO PACOTE</span><h3>Adicionar CodeCoins</h3></div></div>
+              <label>Identificador<input required placeholder="coins-1000" value={newCoinPack.slug} onChange={(event) => setNewCoinPack({ ...newCoinPack, slug: event.target.value })} /></label>
+              <label>Nome<input required placeholder="1.000 CodeCoins" value={newCoinPack.name} onChange={(event) => setNewCoinPack({ ...newCoinPack, name: event.target.value })} /></label>
+              <label>Quantidade<input required type="number" min="1" value={newCoinPack.coinAmount} onChange={(event) => setNewCoinPack({ ...newCoinPack, coinAmount: event.target.value })} /></label>
+              <label>Preço (R$)<input required type="number" min="0" step="0.01" value={newCoinPack.price} onChange={(event) => setNewCoinPack({ ...newCoinPack, price: event.target.value })} /></label>
+              <label>Stripe Price ID<input placeholder="price_test_..." value={newCoinPack.stripePriceId} onChange={(event) => setNewCoinPack({ ...newCoinPack, stripePriceId: event.target.value })} /></label>
+              <button className="button-primary" type="submit">Criar pacote</button>
+            </form>
+          </section>
           <div className="community-columns">
             <div>
               <h3>Movimentações de CodeCoins</h3>
