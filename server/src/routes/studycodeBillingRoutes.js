@@ -23,6 +23,20 @@ async function planForCheckout(planSlug = "premium") {
 
 router.use(authenticateStudent);
 
+router.get("/coins/balance", async (req, res, next) => {
+  try {
+    const result = await pool.query(`
+      SELECT COALESCE(SUM(amount), 0)::int AS balance,
+             COUNT(*)::int AS transaction_count
+      FROM studycode_coin_transactions
+      WHERE user_id = $1`, [req.student.sub]);
+    return res.json({
+      balance: result.rows[0]?.balance || 0,
+      transactionCount: result.rows[0]?.transaction_count || 0,
+    });
+  } catch (error) { return next(error); }
+});
+
 router.get("/status", async (req, res, next) => {
   try {
     const result = await pool.query(`
