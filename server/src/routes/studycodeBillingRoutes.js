@@ -8,6 +8,21 @@ const router = Router();
 const stripe = env.stripeSecretKey ? new Stripe(env.stripeSecretKey) : null;
 const APP_SUCCESS_URL = process.env.STUDYCODE_BILLING_SUCCESS_URL || "studycode://billing/success";
 const APP_CANCEL_URL = process.env.STUDYCODE_BILLING_CANCEL_URL || "studycode://billing/cancel";
+const STUDYCODE_PRODUCT_SLUG = "studycode";
+
+async function coinPackForCheckout(packRef) {
+  const value = String(packRef || "").trim();
+  if (!value) return null;
+  const result = await pool.query(`
+    SELECT pack.id, pack.slug, pack.name, pack.coin_amount, pack.price,
+           pack.currency, pack.stripe_price_id
+    FROM studycode_coin_packs pack
+    JOIN nexus_products product ON product.id = pack.product_id
+    WHERE product.slug = $1 AND product.status <> 'archived' AND pack.active = TRUE
+      AND (pack.id::text = $2 OR pack.slug = $2)
+    LIMIT 1`, [STUDYCODE_PRODUCT_SLUG, value]);
+  return result.rows[0] || null;
+}
 
 async function planForCheckout(planSlug = "premium") {
   const result = await pool.query(`
@@ -34,6 +49,22 @@ router.get("/coins/balance", async (req, res, next) => {
       balance: result.rows[0]?.balance || 0,
       transactionCount: result.rows[0]?.transaction_count || 0,
     });
+  } catch (error) { return next(error); }
+});
+
+router.get("/coins/history", async (req, res, next) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, pack_slug AS "packSlug", coin_amount AS "coinAmount",
+             provider, amount, currency, status,
+             checkout_session_id AS "checkoutSessionId",
+             payment_intent_id AS "paymentIntentId",
+             payment_method AS "paymentMethod", paid_at AS "paidAt",
+             created_at AS "createdAt"
+      FROM studycode_codecoin_purchases
+      WHERE studycode_user_id = $1
+      ORDER BY created_at DESC`, [req.student.sub]);
+    return res.json({ purchases: result.rows });
   } catch (error) { return next(error); }
 });
 
@@ -76,6 +107,98 @@ router.get("/history", async (req, res, next) => {
         )
       ORDER BY created_at DESC`, [req.student.sub]);
     return res.json({ payments: result.rows });
+  } catch (error) { return next(error); }
+});
+
+router.post("/coins/checkout-session", async (req, res, next) => {
+  try {
+    const requestedProvider = String(req.body?.provider || "stripe").trim().toLowerCase();
+    if (requestedProvider === "mercadopago") {
+      return res.status(503).json({ error: "Mercado Pago ainda não está habilitado. Configure as credenciais do provedor para ativá-lo." });
+    }
+    if (requestedProvider !== "stripe") {
+      return res.status(400).json({ error: "Provedor de pagamento inválido." });
+    }
+    if (!stripe) return res.status(503).json({ error: "Pagamentos Stripe ainda não configurados no servidor." });
+
+    const pack = await coinPackForCheckout(req.body?.pack_id || req.body?.pack_slug);
+    if (!pack) return res.status(404).json({ error: "Pacote de CodeCoins não está disponível." });
+    const studentResult = await pool.query(
+      "SELECT id, name, email FROM studycode_users WHERE id = $1 AND active = TRUE",
+      [req.student.sub],
+    );
+    const student = studentResult.rows[0];
+    if (!student) return res.status(401).json({ error: "Aluno StudyCode não encontrado." });
+
+    // O aplicativo não envia preço. O valor oficial vem do pacote editado no Dashboard.
+    const amount = Number(pack.price);
+    const coinAmount = Number(pack.coin_amount);
+    if (!Number.isFinite(amount) || amount <= 0 || !Number.isInteger(coinAmount) || coinAmount <= 0) {
+      return res.status(400).json({ error: "Este pacote possui preço ou quantidade inválida no Dashboard." });
+    }
+    const tenantId = req.body?.tenant_id ? String(req.body.tenant_id) : null;
+    const metadata = {
+      studyCode_user_id: student.id,
+      tenant_id: tenantId || "",
+      product_id: "StudyCode",
+      product_type: "codecoin",
+      plan_id: pack.slug,
+      pack_id: pack.id,
+      pack_slug: pack.slug,
+      coin_amount: String(coinAmount),
+      amount_brl: amount.toFixed(2),
+      provider: "stripe",
+      student_name: student.name,
+      student_email: student.email,
+    };
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [{
+        price_data: {
+          currency: String(pack.currency || "brl").toLowerCase(),
+          unit_amount: Math.round(amount * 100),
+          product_data: {
+            name: pack.name || `${coinAmount} CodeCoins`,
+            description: "Moedas virtuais do StudyCode",
+          },
+        },
+        quantity: 1,
+      }],
+      customer_email: student.email,
+      success_url: APP_SUCCESS_URL,
+      cancel_url: APP_CANCEL_URL,
+      metadata,
+      payment_intent_data: { metadata },
+      custom_text: {
+        submit: { message: "Pagamento seguro processado pelo Stripe para o StudyCode." },
+      },
+      payment_method_types: ["card"],
+      branding_settings: {
+        logo: { type: "url", url: env.studycodeCheckoutLogoUrl },
+        background_color: "#0B5D83",
+        button_color: "#FFB32C",
+        border_style: "rounded",
+        font_family: "inter",
+      },
+    });
+
+    await pool.query(`
+      INSERT INTO studycode_codecoin_purchases
+        (studycode_user_id, pack_id, pack_slug, coin_amount, provider, amount,
+         currency, checkout_session_id, status, provider_payload)
+      VALUES ($1, $2, $3, $4, 'stripe', $5, $6, $7, 'pending', $8)
+      ON CONFLICT (checkout_session_id) DO NOTHING`,
+      [student.id, pack.id, pack.slug, coinAmount, amount, String(pack.currency || "brl").toLowerCase(), session.id, JSON.stringify({ sessionId: session.id, metadata })],
+    );
+
+    return res.json({
+      url: session.url,
+      checkoutUrl: session.url,
+      sessionId: session.id,
+      status: "pending",
+      provider: "stripe",
+      pack: { id: pack.id, slug: pack.slug, name: pack.name, coinAmount, amount },
+    });
   } catch (error) { return next(error); }
 });
 
