@@ -16,6 +16,6 @@ export const env = {
   paymentsMode: process.env.PAYMENTS_MODE || "test",
   stripeSecretKey: process.env.STRIPE_SECRET_KEY || "",
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
-  studycodeCheckoutLogoUrl: process.env.STUDYCODE_CHECKOUT_LOGO_URL || "https://raw.githubusercontent.com/maxsfs11-star/StudyCode/main/assets/branding/studycode-official-logo.jpg",
+  studycodeCheckoutLogoUrl: process.env.STUDYCODE_CHECKOUT_LOGO_URL || "https://raw.githubusercontent.com/maxsfs11-star/StudyCode/main/assets/branding/studycode-checkout-logo.png",
 };
 
